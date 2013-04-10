@@ -6,6 +6,7 @@ library html_css_fixup;
 
 import 'dart:json' as json;
 
+import 'package:csslib/parser.dart' as css;
 import 'package:csslib/visitor.dart';
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/dom_parsing.dart';
@@ -28,16 +29,18 @@ void fixupHtmlCss(FileInfo fileInfo, CompilerOptions opts) {
   // stylesheet selectors and making those CSS classes and ids unique to that
   // component.
   if (opts.verbose) print("  CSS fixup ${path.basename(fileInfo.inputPath)}");
+
   for (var component in fileInfo.declaredComponents) {
     // TODO(terry): Consider allowing more than one style sheet per component.
     // For components only 1 stylesheet allowed.
     if (component.styleSheets.length == 1) {
-      var styleSheet = component.styleSheets[0];
+      var tree = component.styleSheets[0];
+
       // If polyfill is on prefix component name to all CSS classes and ids
       // referenced in the scoped style.
       var prefix = opts.processCss ? component.tagName : null;
       // List of referenced #id and .class in CSS.
-      var knownCss = new IdClassVisitor()..visitTree(styleSheet);
+      var knownCss = new IdClassVisitor()..visitTree(tree);
       // Prefix all id and class refs in CSS selectors and HTML attributes.
       new _ScopedStyleRenamer(knownCss, prefix, opts.debugCss).visit(component);
     }
@@ -92,10 +95,12 @@ String createCssSelectorsDefinition(ComponentInfo info, bool cssPolyfill) {
   return 'static Map<String, String> _css = $css;';
 }
 
-// TODO(terry): Do we need to handle other selectors than IDs/classes?
+// TODO(terry): Need to handle other selectors than IDs/classes like tag name
+//              e.g., DIV { color: red; }
 // TODO(terry): Would be nice if we didn't need to mangle names; requires users
 //              to be careful in their code and makes it more than a "polyfill".
-//              Maybe mechanism that generates CSS class name for scoping.
+//              Maybe mechanism that generates CSS class name for scoping.  This
+//              would solve tag name selectors (see above TODO).
 /**
  * Fix a component's HTML to implement scoped stylesheets.
  *
@@ -177,6 +182,105 @@ class _ScopedStyleRenamer extends InfoVisitor {
   }
 }
 
+class VarDefinitions extends Visitor {
+  final Map<String, VarDefinition> found = new Map();
+
+  void visitTree(StyleSheet tree) {
+    visitStyleSheet(tree);
+  }
+
+  visitVarDefinition(VarDefinition node) {
+    //Replace with latest variable definition.
+    found[node.definedName] = node;
+    super.visitVarDefinition(node);
+  }
+
+  void visitVarDefinitionDirective(VarDefinitionDirective node) {
+    visitVarDefinition(node.def);
+  }
+}
+
+/** Map any expression which contains a varUsage to the var defintion. */
+class ResolveVarUsages extends Visitor {
+  final Map<String, VarDefinition> varDefs;
+
+  ResolveVarUsages(this.varDefs);
+
+  void visitTree(StyleSheet tree) {
+    visitStyleSheet(tree);
+  }
+
+  void visitExpressions(Expressions node) {
+    for (var i = 0; i < node.expressions.length; i++) {
+      var expr = node.expressions[i];
+      if (expr is VarUsage) {
+        var def = varDefs[expr.name];
+        if (def != null) {
+          _resolveVarUsage(node, i, def);
+        } else if (expr.defaultValue != null) {
+          // Use default value.
+          if (expr.defaultValue is VarUsage) {
+            var def = varDefs[expr.defaultValue.name];
+            if (def != null) {
+              _resolveVarUsage(node, i, def);
+            } else {
+              node.expressions.removeAt(i);
+            }
+          } else {
+            node.expressions[i] = expr.defaultValue;
+          }
+        } else {
+          // Couldn't find the var definition and no default value so clear the
+          // expression.
+          node.expressions.removeAt(i);
+        }
+      }
+    }
+  }
+
+  _resolveVarUsage(Expressions node, int idx, VarDefinition def) {
+    // Map to the var'd definition.
+    var defExpressions = (def.expression as Expressions).expressions;
+    if (defExpressions.length == 1) {
+      // Replace the var usage with the real expression.
+      node.expressions[idx] = def.expression;
+    } else if (defExpressions.length > 1) {
+      // Replace var usage with all expressions in the var definition.
+      for (var e in defExpressions.reversed) {
+        node.expressions.insert(idx, e);
+      }
+    } else {
+      // Nothing clear the var usage.
+      node.expressions.removeAt(idx);
+    }
+  }
+}
+
+/** Remove all var definitions. */
+class RemoveVarDefinitions extends Visitor {
+  void visitTree(StyleSheet tree) {
+    visitStyleSheet(tree);
+  }
+
+  void visitStyleSheet(StyleSheet ss) {
+    for (var i = ss.topLevels.length - 1; i >= 0; i--) {
+      if (ss.topLevels[i] is VarDefinitionDirective) {
+        ss.topLevels.removeAt(i);
+      }
+    }
+    super.visitStyleSheet(ss);
+  }
+
+  void visitDeclarationGroup(DeclarationGroup node) {
+    for (var i = node.declarations.length - 1; i >= 0; i--) {
+      if (node.declarations[i] is VarDefinition) {
+        node.declarations.removeAt(i);
+      }
+    }
+    super.visitDeclarationGroup(node);
+  }
+}
+
 /** Compute each CSS URI resource relative from the generated CSS file. */
 class UriVisitor extends Visitor {
   /**
@@ -206,21 +310,73 @@ class UriVisitor extends Visitor {
  */
 class CssImports extends Visitor {
   final String packageRoot;
-  final FileInfo fileInfo;
+
+  /** Relative path to this file. */
+  final String path;
 
   /** List of all imported style sheets. */
   final List<UrlInfo> urlInfos = [];
 
-  CssImports(this.packageRoot, this.fileInfo);
+  CssImports(this.packageRoot, FileInfo fileInfo) : path = fileInfo.inputPath;
 
   void visitTree(StyleSheet tree) {
     visitStyleSheet(tree);
   }
 
   void visitImportDirective(ImportDirective node) {
-    var urlInfo = UrlInfo.resolve(packageRoot, fileInfo.inputPath, node.import,
+    var urlInfo = UrlInfo.resolve(packageRoot, path, node.import,
         node.span, isCss: true);
     if (urlInfo == null) return;
     urlInfos.add(urlInfo);
+  }
+}
+
+// TODO(terry): Add --checked when fully implemented and error handling.
+StyleSheet parseCss(String content, String sourcePath, Messages messages,
+                     CompilerOptions opts) {
+  if (!content.trim().isEmpty) {
+    var errs = [];
+
+    // TODO(terry): Add --checked when fully implemented and error handling.
+    var stylesheet = css.parse(content, errors: errs, options:
+        [opts.warningsAsErrors ? '--warnings_as_errors' : '', 'memory']);
+
+    // Note: errors aren't fatal in HTML (unless strict mode is on).
+    // So just print them as warnings.
+    for (var e in errs) {
+      messages.warning(e.message, e.span);
+    }
+
+    return stylesheet;
+  }
+}
+
+/** Process CSS inside of a style tag. */
+class ComponentCssStyleTag extends TreeVisitor {
+  final String _packageRoot;
+  final ComponentInfo _component;
+  final Messages _messages;
+  final CompilerOptions _options;
+
+  /** List of @imports found. */
+  List<UrlInfo> imports = [];
+
+  ComponentCssStyleTag(this._packageRoot, this._component, this._messages,
+      this._options);
+
+  void visitElement(Element node) {
+    if (node.tagName == 'style' && node.attributes.containsKey("scoped")) {
+      // Parse the contents of the scoped style tag.
+      var styleSheet = parseCss(node.nodes.single.value,
+          _component.declaringFile.inputPath, _messages, _options);
+      if (styleSheet != null) {
+        _component.styleSheets.add(styleSheet);
+
+        // Find all imports return list of @imports in this style tag.
+        imports.addAll((new CssImports(_packageRoot, _component.declaringFile)
+            ..visitTree(styleSheet)).urlInfos);
+      }
+    }
+    super.visitElement(node);
   }
 }

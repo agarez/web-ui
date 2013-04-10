@@ -8,12 +8,15 @@
  */
 library analyzer;
 
+import 'package:csslib/parser.dart' as css;
+import 'package:csslib/visitor.dart' show StyleSheet, treeToDebugString, Visitor;
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/dom_parsing.dart';
 import 'package:source_maps/span.dart';
 
 import 'dart_parser.dart';
 import 'files.dart';
+import 'html_css_fixup.dart';
 import 'html5_utils.dart';
 import 'info.dart';
 import 'messages.dart';
@@ -1005,5 +1008,124 @@ class BindingParser {
       } while (moveNext());
     }
     content.add(textContent);
+  }
+}
+
+
+void analyzeCss(String packageRoot, List<SourceFile> files,
+                Map<String, FileInfo> info, Messages messages,
+                {warningsAsErrors: false}) {
+  var analyzer = new _AnalyzerCss(packageRoot, info, messages,
+      warningsAsErrors);
+  for (var file in files) analyzer.process(file);
+  analyzer.normalize();
+}
+
+class _AnalyzerCss {
+  final String packageRoot;
+  final Map<String, FileInfo> info;
+  final Messages _messages;
+  final bool _warningsAsErrors;
+
+  Set<StyleSheet> allStyleSheets = new Set<StyleSheet>();
+
+  _AnalyzerCss(this.packageRoot, this.info, this._messages,
+      this._warningsAsErrors);
+
+  /**
+   * Run the analyzer on every file that is a style sheet or any component that
+   * has a style tag.
+   */
+  void process(SourceFile file) {
+    var fileInfo = info[file.path];
+    if (file.isStyleSheet) {
+      var all = processVars(fileInfo);
+
+      // Add to list of all style sheets analyzed.
+      for (var tree in all) allStyleSheets.add(tree);
+    }
+
+    // Process any components.
+    for (var component in fileInfo.declaredComponents) {
+      var all = processVars(component);
+
+      // Add to list of all style sheets analyzed.
+      for (var tree in all) allStyleSheets.add(tree);
+    }
+  }
+
+  void normalize() {
+    // Remove all var definitions for all style sheets analyzed.
+    for (var tree in allStyleSheets) new RemoveVarDefinitions().visitTree(tree);
+  }
+
+  List<StyleSheet> processVars(var fileInfo) {
+    var all = resolveAllStyleSheets(fileInfo);
+
+    var errs = [];
+    css.analyze(all, errors: errs, options:
+      [_warningsAsErrors ? '--warnings_as_errors' : '', 'memory']);
+    // Print errors as warnings.
+    for (var e in errs) {
+      _messages.warning(e.message, e.span);
+    }
+
+    // Build list of all var definitions.
+    Map varDefs = new Map();
+    for (var tree in all) {
+      (new VarDefinitions()..visitTree(tree)).found.forEach((key, value) {
+        varDefs[key] = value;
+      });
+    }
+
+    // Resolve all var usages.
+    for (var tree in all) new ResolveVarUsages(varDefs).visitTree(tree);
+
+    return all;
+  }
+
+  List<StyleSheet> resolveAllStyleSheets(var fileCompInfo,
+                                          {List<StyleSheet> all: null}) {
+    if (all == null) {
+      all = [];
+    }
+
+    // FileInfo used to resolve all pathing information.
+    var fileInfo;
+    if (fileCompInfo is FileInfo) {
+      fileInfo = fileCompInfo;
+    } else if (fileCompInfo is ComponentInfo) {
+      // For a component it's the declaring file path.
+      fileInfo = (fileCompInfo as ComponentInfo).declaringFile;
+    } else return all;
+
+    var urlInfos = [];
+    if (fileCompInfo.styleSheets.length > 0) {
+      urlInfos = (new CssImports(packageRoot, fileInfo)
+        ..visitTree(fileCompInfo.styleSheets[0])).urlInfos;
+    }
+
+    for (UrlInfo importSS in urlInfos) {
+      var importInfo = info[importSS.resolvedPath];
+      if (importInfo != null) {
+        for (var hrefInfo in importInfo.styleSheetHref) {
+          resolveAllStyleSheets(info[hrefInfo.resolvedPath], all: all);
+        }
+
+        for (var stylesheet in importInfo.styleSheets) {
+          if (!all.contains(stylesheet)) {
+            all.add(stylesheet);
+          }
+        }
+      }
+    }
+
+    for (var stylesheet in fileCompInfo.styleSheets) {
+      if (!all.contains(stylesheet)) {
+        all.add(stylesheet);
+      }
+    }
+
+    return all;
   }
 }

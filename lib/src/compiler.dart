@@ -8,8 +8,7 @@ import 'dart:async';
 import 'dart:collection' show SplayTreeMap;
 import 'dart:json' as json;
 import 'package:analyzer_experimental/src/generated/ast.dart' show Directive, UriBasedDirective;
-import 'package:csslib/parser.dart' as css;
-import 'package:csslib/visitor.dart' show StyleSheet, treeToDebugString, Visitor;
+import 'package:csslib/visitor.dart' show StyleSheet, treeToDebugString;
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/parser.dart';
 import 'package:source_maps/span.dart' show Span;
@@ -179,6 +178,14 @@ class Compiler {
       } else if (component.userCode != null) {
         _processImports(component);
       }
+
+      // Process any @imports inside of the <style> tag.
+      var styleProcessor = new ComponentCssStyleTag(_pathMapper.packageRoot,
+          component, _messages, options);
+      styleProcessor.visit(component.element);
+      for (var urlInfo in styleProcessor.imports) {
+        _addCssFile(urlInfo);
+      }
     }
   }
 
@@ -301,27 +308,42 @@ class Compiler {
     var fileInfo = new FileInfo(cssFile.path);
     info[cssFile.path] = fileInfo;
 
-    var styleSheet = _parseCss(cssFile.code, cssFile.path, _messages, options);
+    var styleSheet = parseCss(cssFile.code, cssFile.path, _messages, options);
     if (styleSheet != null) {
-      var urlInfos = _time('CSS imports', cssFile.path, () =>
-          (new CssImports(_pathMapper.packageRoot, fileInfo)
-              ..visitTree(styleSheet)).urlInfos);
-
+      resolveStyleSheetImports(fileInfo, cssFile.path, styleSheet);
       fileInfo.styleSheets.add(styleSheet);
+    }
+  }
 
-      for (var urlInfo in urlInfos) {
-        if (urlInfo == null) break;
+  /** Load and parse all style sheets referenced with an @imports. */
+  void resolveStyleSheetImports(var fileComponent, processingFile,
+                                StyleSheet styleSheet) {
+    var fileInfo;
+    if (fileComponent is ComponentInfo) {
+      fileInfo = (fileComponent as ComponentInfo).declaringFile;
+    } else if (fileComponent is FileInfo) {
+      fileInfo = fileComponent;
+    } else return;
 
-        fileInfo.styleSheetHref.add(urlInfo);
+    var urlInfos = _time('CSS imports', processingFile, () =>
+        (new CssImports(_pathMapper.packageRoot, fileInfo)
+        ..visitTree(styleSheet)).urlInfos);
 
-        // Load any @imported stylesheet files referenced in this style sheet.
-        var url = urlInfo.resolvedPath;
-        if (!_processed.contains(url)) {
-          _processed.add(url);
-          _tasks.add(_parseStyleSheetFile(urlInfo)
-              .then(_processStyleSheetFile));
-        }
-      }
+    for (var urlInfo in urlInfos) {
+      if (urlInfo == null) break;
+
+      if (fileComponent is FileInfo) fileComponent.styleSheetHref.add(urlInfo);
+
+      // Load any @imported stylesheet files referenced in this style sheet.
+      _addCssFile(urlInfo);
+    }
+  }
+
+  void _addCssFile(UrlInfo urlInfo) {
+    var href = urlInfo.resolvedPath;
+    if (!_processed.contains(href)) {
+      _processed.add(href);
+      _tasks.add(_parseStyleSheetFile(urlInfo).then(_processStyleSheetFile));
     }
   }
 
@@ -512,6 +534,11 @@ class Compiler {
             analyzeFile(file, info, uniqueIds, _messages));
       }
     }
+
+    // Analyze all CSS files.
+    _time('Analyzed Style Sheets', '', () =>
+        analyzeCss(_pathMapper.packageRoot, files, info, _messages,
+            warningsAsErrors: options.warningsAsErrors));
   }
 
   /** Emit the generated code corresponding to each input file. */
@@ -521,9 +548,6 @@ class Compiler {
       _time('Codegen', file.path, () {
         var fileInfo = info[file.path];
         cleanHtmlNodes(fileInfo);
-        if (!fileInfo.isEntryPoint) {
-          _processStylesheet(fileInfo, messages: _messages, options: options);
-        }
         fixupHtmlCss(fileInfo, options);
         _emitComponents(fileInfo);
       });
@@ -713,65 +737,5 @@ class Compiler {
     message.write(filename);
     return time(message.toString(), callback,
         printTime: options.verbose || printTime);
-  }
-}
-
-/** Parse all stylesheet for polyfilling assciated with [info]. */
-void _processStylesheet(info, {Messages messages : null,
-                               CompilerOptions options : null}) {
-  new _ProcessCss(messages, options).visit(info);
-}
-
-// TODO(terry): Add --checked when fully implemented and error handling.
-StyleSheet _parseCss(String content, String sourcePath, Messages messages,
-                     CompilerOptions opts) {
-  if (!content.trim().isEmpty) {
-    var errs = [];
-
-    // TODO(terry): Add --checked when fully implemented and error handling.
-    var stylesheet = css.parse(content, errors: errs, options:
-        [opts.warningsAsErrors ? '--warnings_as_errors' : '', 'memory']);
-
-    // Note: errors aren't fatal in HTML (unless strict mode is on).
-    // So just print them as warnings.
-    for (var e in errs) {
-      messages.warning(e.message, e.span);
-    }
-
-    return stylesheet;
-  }
-}
-
-/** Post-analysis of style sheet; parsed ready for emitting with polyfill. */
-class _ProcessCss extends InfoVisitor {
-  final Messages messages;
-  final CompilerOptions options;
-  ComponentInfo component;
-
-  _ProcessCss(this.messages, this.options);
-
-  void visitComponentInfo(ComponentInfo info) {
-    var oldComponent = component;
-    component = info;
-
-    super.visitComponentInfo(info);
-
-    component = oldComponent;
-  }
-
-  void visitElementInfo(ElementInfo info) {
-    if (component != null) {
-      var node = info.node;
-      if (node.tagName == 'style' && node.attributes.containsKey("scoped")) {
-        // Parse the contents of the scoped style tag.
-        var styleSheet = _parseCss(node.nodes.single.value,
-            component.declaringFile.inputPath, messages, options);
-        if (styleSheet != null) {
-          component.styleSheets.add(styleSheet);
-        }
-      }
-    }
-
-    super.visitElementInfo(info);
   }
 }

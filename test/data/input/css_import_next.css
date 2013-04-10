@@ -1,5 +1,7 @@
+@import "resources/assets/theme/base_definition.css";
+
 .main-glyph {
-  background:red url('main.png');
+  background: var(main_color) url('main.png');
   width: 300px;
   height: 80px;
 }

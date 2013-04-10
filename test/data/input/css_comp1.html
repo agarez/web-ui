@@ -19,6 +19,8 @@ TODO(terry): apply-author-styles needs to be handled the default is not to apply
     <element name="x-comp1" extends="span" constructor="Comp1">
       <template>
         <style scoped>
+@import "resources/assets/theme/base_definition.css";
+
 #input-1 { }
 #box-1 {
   width: 300px;
@@ -26,7 +28,7 @@ TODO(terry): apply-author-styles needs to be handled the default is not to apply
   padding: 20px
 }
 .comp-1-input {
-  color: red;
+  color: var(main_color);
   background-color: blue;
   width: 100%;
   height: 100%;

@@ -1,5 +1,7 @@
+@import "../theme/base_definition.css";
+
 .left-glyph-asset {
-  background:red url('../images/glyph_asset.png');
+  background: var(main_color) url('../images/glyph_asset.png');
   float: left;
   width: 14px;
   height: 14px;
