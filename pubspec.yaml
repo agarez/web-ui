@@ -2,22 +2,22 @@ name: web_ui
 author: "Web UI Authors <web-ui-dev@dartlang.org>"
 homepage: https://github.com/dart-lang/web-ui
 description: An easy way to build web apps in Dart.
-version: 0.4.4
+version: 0.4.6+1
 dependencies:
-  args: ">=0.4.3+1"
-  analyzer_experimental: ">=0.4.2+1"
-  browser: ">=0.4.3+1"
-  logging: ">=0.4.3+5"
-  pathos: ">=0.4.3+1"
-  unittest: ">=0.4.3+1"
+  args: ">=0.4.5"
+  analyzer_experimental: ">=0.4.5"
+  browser: ">=0.4.5"
+  logging: ">=0.4.5"
+  pathos: ">=0.4.5"
+  unittest: ">=0.4.5"
   # Pin these github packages so we don't get breaks from publishing them:
-#  csslib: ">=0.4.2 <0.4.3"
+#  csslib: ">=0.4.6 <0.4.7"
   csslib:
-    path: /home/terry/dart-wc/csslib
-  html5lib: ">=0.4.1 <0.4.2"
-  source_maps: ">=0.4.1 <0.4.2"
+      path: /home/terry/dart-wc/csslib
+  html5lib: ">=0.4.3 <0.4.4"
+  source_maps: ">=0.4.5"
 dev_dependencies:
   js: any
   benchmark_harness: ">=1.0.2 <1.0.3"
 environment:
-  sdk: ">=0.4.4+0.r20690"
+  sdk: ">=0.4.6"

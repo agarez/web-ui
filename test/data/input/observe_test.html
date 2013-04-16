@@ -1,0 +1,29 @@
+<!doctype html>
+<!--
+Copyright (c) 2013, the Dart project authors.  Please see the AUTHORS file
+for details. All rights reserved. Use of this source code is governed by a
+BSD-style license that can be found in the LICENSE file.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <script src="packages/web_ui/testing/testing.js"></script>
+</head>
+<body>
+  {{foo}}
+  <script type="application/dart">
+    import 'dart:async';
+    import 'dart:html';
+    import 'package:web_ui/web_ui.dart';
+    @observable var foo = '';
+    main() {
+      observe(() => foo, (e) { print(e); });
+      foo = 'PASS';
+      Timer.run(() {
+        window.postMessage('done', '*');
+      });
+    }
+  </script>
+</body>
+</html>

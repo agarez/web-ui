@@ -36,15 +36,15 @@
   import 'recursive_test_data.dart';
 
   main() {
-    new Future.immediate(null)
+    new Future.value(null)
         .then((_) { len = 1; })
-        .then((_) => new Future.immediate(null))
+        .then((_) => new Future.value(null))
         .then((_) { len = 3; })
-        .then((_) => new Future.immediate(null))
+        .then((_) => new Future.value(null))
         .then((_) { len = 2; })
-        .then((_) => new Future.immediate(null))
+        .then((_) => new Future.value(null))
         .then((_) { len = 1; })
-        .then((_) => new Future.immediate(null))
+        .then((_) => new Future.value(null))
         .then((_) { window.postMessage('done', '*'); });
   }
   </script>

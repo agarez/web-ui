@@ -3,9 +3,18 @@
 // BSD-style license that can be found in the LICENSE file.
 
 /**
- * This library exposes the types in [observe], [safe_html], [templating],
- * [watcher] and the [WebComponent] base class. See this article for more
- * information about this library:
+ * This library exports all of the commonly used functions and types for
+ * building UI's. It is equivalent to the following imports:
+ *
+ *     import 'package:web_ui/observe.dart';
+ *     import 'package:web_ui/safe_html.dart';
+ *     import 'package:web_ui/templating.dart';
+ *     import 'package:web_ui/watcher.dart';
+ *     import 'package:web_ui/web_ui.dart' show WebComponent;
+ *
+ * Note that the [WebComponent] base class is defined in this library.
+ *
+ * See this article for more information:
  * <http://www.dartlang.org/articles/dart-web-components/>.
  */
 library web_ui;
@@ -17,14 +26,7 @@ export 'watcher.dart';
 
 import 'dart:async';
 import 'dart:html';
-
 import 'package:meta/meta.dart';
-
-// Imported for the doc comment
-import 'observe.dart' as observe;
-import 'safe_html.dart' as safe_html;
-import 'templating.dart' as templating;
-import 'watcher.dart' as watcher;
 
 /**
  * The base class for all Dart web components. In addition to the [Element]
@@ -280,7 +282,7 @@ abstract class WebComponent implements Element {
 
   List<Node> get nodes => host.nodes;
 
-  set nodes(Collection<Node> value) { host.nodes = value; }
+  set nodes(Iterable<Node> value) { host.nodes = value; }
 
   /**
    * Replaces this node with another node.
@@ -319,19 +321,19 @@ abstract class WebComponent implements Element {
 
   List<Element> get elements => host.children;
 
-  set elements(Collection<Element> value) {
+  set elements(List<Element> value) {
     host.children = value;
   }
 
   List<Element> get children => host.children;
 
-  set children(Collection<Element> value) {
+  set children(List<Element> value) {
     host.children = value;
   }
 
   Set<String> get classes => host.classes;
 
-  set classes(Collection<String> value) {
+  set classes(Iterable<String> value) {
     host.classes = value;
   }
 
@@ -558,7 +560,7 @@ abstract class WebComponent implements Element {
 
   Node get $dom_lastChild => host.$dom_lastChild;
 
-  String get $dom_localName => host.$dom_localName;
+  String get localName => host.localName;
 
   String get $dom_namespaceUri => host.$dom_namespaceUri;
 
@@ -606,6 +608,10 @@ abstract class WebComponent implements Element {
       host.$dom_scrollIntoViewIfNeeded(centerIfNeeded);
     }
   }
+
+  String get regionOverset => host.regionOverset;
+
+  List<Range> getRegionFlowRanges() => host.getRegionFlowRanges();
 
   // TODO(jmesserly): rename "created" to "onCreated".
   void onCreated() => created();

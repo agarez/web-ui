@@ -221,8 +221,8 @@ main() {
       expect(_created(elem), equalsIgnoringWhitespace(
           r"__e0 = _root.nodes[0]; "
           "__t.oneWayBind(() => bar, (e) { "
-              "if (__e0.attributes['data-foo'] != e) "
-              "__e0.attributes['data-foo'] = e; }, false, false);"));
+              "if (__e0.dataset['foo'] != e) "
+              "__e0.dataset['foo'] = e; }, false, false);"));
     });
 
     test('created for class', () {
@@ -272,8 +272,8 @@ main() {
         expect(_created(elem), equalsIgnoringWhitespace(
             r"__e0 = _root.nodes[0]; "
             "__t.oneWayBind(() => bar, (e) { "
-                "if (__e0.attributes['data-foo'] != e) "
-                "__e0.attributes['data-foo'] = e; }, true, false);"));
+                "if (__e0.dataset['foo'] != e) "
+                "__e0.dataset['foo'] = e; }, true, false);"));
       });
 
       test('created for class', () {

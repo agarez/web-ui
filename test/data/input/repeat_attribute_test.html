@@ -11,11 +11,11 @@ BSD-style license that can be found in the LICENSE file.
   <script src="packages/web_ui/testing/testing.js"></script>
 </head>
 <body>
-  <!-- Tests the correct interaction of iteration and conditionals. -->
+  <!-- Tests that repeat and template attribute work. -->
   <table>
-    <tbody id='test' template iterate="row in table">
-      <tr template iterate="cell in row">
-        <td template if="cell != 0">{{cell}}</td>
+    <tbody id='test'>
+      <tr template repeat="row in table">
+        <td template repeat="cell in row.where((c) => c != 0)">{{cell}}</td>
       </tr>
     </tbody>
   </table>
@@ -37,21 +37,20 @@ BSD-style license that can be found in the LICENSE file.
       table[1][1] = 9;
       Timer.run(() {
         var test = document.query('#test');
-        expect(test.children.length, table.length);
+        expect(test.children.length, table.length + 1);
+        expect(test.children[0].style.display, 'none');
         for (int row = 0; row < table.length; row++) {
-          var tr = test.children[row];
+          var tr = test.children[row + 1];
           expect(tr.tagName, 'TR');
-          int column = -1;
-          for (var td in tr.children) {
-            expect(td.tagName, 'TD');
-            if (td.style.display == 'none') {
-              column++;
-              continue;
-            }
 
-            var value = table[row][column];
-            expect(value, greaterThan(0));
-            expect(td.innerHtml, value.toString());
+          var filtered = table[row].where((c) => c != 0).toList();
+          expect(tr.children.length, filtered.length + 1);
+          expect(tr.children[0].style.display, 'none');
+
+          for (int col = 0; col < filtered.length; col++) {
+            var td = tr.children[col + 1];
+            expect(td.tagName, 'TD');
+            expect(td.innerHtml, filtered[col].toString());
           }
         }
         window.postMessage('done', '*');

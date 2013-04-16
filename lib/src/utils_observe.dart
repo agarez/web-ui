@@ -4,6 +4,7 @@
 
 library web_ui.src.utils_observe;
 
+import 'dart:collection';
 import 'dart:isolate';
 
 // TODO(jmesserly): helpers to combine hash codes. Reuse these from somewhere.
@@ -15,7 +16,7 @@ hash4(w, x, y, z) => hash2(hash2(w, x), hash2(y, z));
 
 // TODO(jmesserly): replace with something in dart:async, as long as it is based
 // on window.setImmediate/mutation observers/postMessage and not setTimeout(0)
-// Maybe we can use Future.immediate? We need it to be fast (next microtask)
+// Maybe we can use Future.value? We need it to be fast (next microtask)
 // like this though: http://dartbug.com/8757.
 /**
  * Adds an event to call [callback], so the event loop will call this after the
@@ -65,4 +66,5 @@ class Arrays {
 
 // TODO(jmesserly): bogus type to workaround spurious VM bug with generic base
 // class and mixins.
-abstract class CollectionBase extends Collection<dynamic> {}
+abstract class IterableWorkaround extends IterableBase<dynamic> {}
+abstract class ListMixinWorkaround extends ListMixin<dynamic> {}

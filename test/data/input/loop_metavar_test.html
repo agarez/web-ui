@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!--
+Copyright (c) 2013, the Dart project authors.  Please see the AUTHORS file
+for details. All rights reserved. Use of this source code is governed by a
+BSD-style license that can be found in the LICENSE file.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <script src="packages/web_ui/testing/testing.js"></script>
+</head>
+<body>
+  Test the $index meta variable:
+  <template repeat="item in items" indentation="remove">
+    <div>
+    "{{item}}" is the {{$index}}{{suffix($index)}} item out of {{$list.length}}.
+    </div>
+  </template>
+  <script type="application/dart">
+  import 'dart:html';
+  import 'package:web_ui/observe.dart';
+
+  @observable
+  List items = toObservable(['foo', 'bar', 'baz', 'qux', 'quux']);
+
+  String suffix(int index) {
+    switch (index) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  }
+
+  main() {
+    window.postMessage('done', '*');
+  }
+  </script>
+</body>
+</html>

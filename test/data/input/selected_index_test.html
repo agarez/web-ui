@@ -1,0 +1,44 @@
+<!doctype html>
+<!--
+Copyright (c) 2013, the Dart project authors.  Please see the AUTHORS file
+for details. All rights reserved. Use of this source code is governed by a
+BSD-style license that can be found in the LICENSE file.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <script src="packages/web_ui/testing/testing.js"></script>
+</head>
+<body>
+  Test a two-way binding on selected-index. It will programmatically select
+  the second option, "Night Owl":
+  <select id="awake" on-change="checkit($event)" bind-selected-index="awake">
+    <option template repeat="x in values" value="{{x}}">{{x}}</option>
+  </select>
+  <script type="application/dart">
+    @observable library main;
+    import 'dart:async';
+    import 'dart:html';
+    import 'package:unittest/unittest.dart';
+    import 'package:web_ui/web_ui.dart';
+
+    var values = ['Early Bird', 'Night Owl'];
+    int awake = 0;
+
+    void main() {
+      SelectElement e = query('#awake');
+      Timer.run(() {
+        awake = 2;
+        Timer.run(() {
+          expect(awake, 2);
+          expect(e.selectedIndex, 2);
+          expect(e.value, values[1]);
+
+          window.postMessage('done', '*');
+        });
+      });
+    }
+  </script>
+</body>
+</html>

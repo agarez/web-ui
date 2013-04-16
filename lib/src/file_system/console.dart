@@ -34,7 +34,7 @@ class ConsoleFileSystem implements FileSystem {
         (file) => file.length().then((length) {
       // TODO(jmesserly): is this guaranteed to read all of the bytes?
       var buffer = new List<int>(length);
-      return file.readList(buffer, 0, length)
+      return file.readInto(buffer, 0, length)
           .then((_) => file.close())
           .then((_) => buffer);
     }));

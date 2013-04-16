@@ -12,7 +12,7 @@ import 'package:csslib/parser.dart' as css;
 import 'package:csslib/visitor.dart' show StyleSheet, treeToDebugString, Visitor;
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/dom_parsing.dart';
-import 'package:source_maps/span.dart';
+import 'package:source_maps/span.dart' hide SourceFile;
 
 import 'dart_parser.dart';
 import 'files.dart';
@@ -105,7 +105,8 @@ class _Analyzer extends TreeVisitor {
         || node.attributes.containsKey('template')
         || node.attributes.containsKey('if')
         || node.attributes.containsKey('instantiate')
-        || node.attributes.containsKey('iterate')) {
+        || node.attributes.containsKey('iterate')
+        || node.attributes.containsKey('repeat')) {
       // template tags, conditionals and iteration are handled specially.
       info = _createTemplateInfo(node);
     }
@@ -286,7 +287,7 @@ class _Analyzer extends TreeVisitor {
     if (node.tagName != 'template' &&
         !node.attributes.containsKey('template')) {
       _messages.warning('template attribute is required when using if, '
-          'instantiate, or iterate attributes.',
+          'instantiate, repeat, or iterate attributes.',
           node.sourceSpan);
     }
 
@@ -303,18 +304,28 @@ class _Analyzer extends TreeVisitor {
         }
       }
     }
+
+    // TODO(jmesserly): deprecate iterate.
     var iterate = node.attributes['iterate'];
+    var repeat = node.attributes['repeat'];
+    if (repeat == null) {
+      repeat = iterate;
+    } else if (iterate != null) {
+      _messages.warning('template cannot have both iterate and repeat. '
+          'iterate attribute will be ignored.', node.sourceSpan);
+      iterate = null;
+    }
 
     // Note: we issue warnings instead of errors because the spirit of HTML and
     // Dart is to be forgiving.
-    if (condition != null && iterate != null) {
+    if (condition != null && repeat != null) {
       _messages.warning('template cannot have both iteration and conditional '
           'attributes', node.sourceSpan);
       return null;
     }
 
     if (node.parent != null && node.parent.tagName == 'element' &&
-        (condition != null || iterate != null)) {
+        (condition != null || repeat != null)) {
 
       // TODO(jmesserly): would be cool if we could just refactor this, or offer
       // a quick fix in the Editor.
@@ -324,8 +335,8 @@ class _Analyzer extends TreeVisitor {
       node.attributes.forEach((k, v) { nestedTemplate.attributes[k] = v; });
 
       _messages.warning('the <template> of a custom element does not support '
-          '"if" or "iterate". However, you can create another template node '
-          'that is a child node, for example:\n'
+          '"if", "iterate" or "repeat". However, you can create another '
+          'template node that is a child node, for example:\n'
           '${example.outerHtml}',
           node.parent.sourceSpan);
       return null;
@@ -339,39 +350,57 @@ class _Analyzer extends TreeVisitor {
         return node.nodes.length > 0 ? result : null;
       }
 
-      result.removeAttributes.add('template');
-
-      // TODO(jmesserly): if-conditions in attributes require injecting a
-      // placeholder node, and a real node which is a clone. We should
-      // consider a design where we show/hide the node instead (with care
-      // taken not to evaluate hidden bindings). That is more along the lines
-      // of AngularJS, and would have a cleaner DOM. See issue #142.
-      var contentNode = node.clone();
-      // Clear out the original attributes. This is nice to have, but
-      // necessary for ID because of issue #141.
-      node.attributes.clear();
-      contentNode.nodes.addAll(node.nodes);
-
-      // Create a new ElementInfo that is a child of "result" -- the
-      // placeholder node. This will become result.contentInfo.
-      visitElementInfo(_createElementInfo(contentNode, result));
+      _createTemplateAttributePlaceholder(node, result);
       return result;
-    } else if (iterate != null) {
-      var match = new RegExp(r"(.*) in (.*)").firstMatch(iterate);
-      if (match != null) {
-        if (node.nodes.length == 0) return null;
-        var result = new TemplateInfo(node, _parent, loopVariable: match[1],
-            loopItems: match[2]);
-        result.removeAttributes.add('iterate');
-        if (node.tagName != 'template') result.removeAttributes.add('template');
+
+    } else if (repeat != null) {
+      var match = new RegExp(r"(.*) in (.*)").firstMatch(repeat);
+      if (match == null) {
+        _messages.warning('template iterate/repeat must be of the form: '
+            'repeat="variable in list", where "variable" is your variable name '
+            'and "list" is the list of items.',
+            node.sourceSpan);
+        return null;
+      }
+
+      if (node.nodes.length == 0) return null;
+      var result = new TemplateInfo(node, _parent, loopVariable: match[1],
+          loopItems: match[2], isRepeat: iterate == null);
+      result.removeAttributes.add('iterate');
+      result.removeAttributes.add('repeat');
+      if (node.tagName == 'template') {
         return result;
       }
-      _messages.warning('template iterate must be of the form: '
-          'iterate="variable in list", where "variable" is your variable name '
-          'and "list" is the list of items.',
-          node.sourceSpan);
+
+      if (!result.isRepeat) {
+        result.removeAttributes.add('template');
+        // TODO(jmesserly): deprecate this? I think you want "template repeat"
+        // most of the time, but "template iterate" seems useful sometimes.
+        // (Native <template> element parsing would make both obsolete, though.)
+        return result;
+      }
+
+      _createTemplateAttributePlaceholder(node, result);
+      return result;
     }
+
     return null;
+  }
+
+  // TODO(jmesserly): if and repeat in attributes require injecting a
+  // placeholder node, and a real node which is a clone. We should
+  // consider a design where we show/hide the node instead (with care
+  // taken not to evaluate hidden bindings). That is more along the lines
+  // of AngularJS, and would have a cleaner DOM. See issue #142.
+  void _createTemplateAttributePlaceholder(Element node, TemplateInfo result) {
+    result.removeAttributes.add('template');
+    var contentNode = node.clone();
+    node.attributes.clear();
+    contentNode.nodes.addAll(node.nodes);
+
+    // Create a new ElementInfo that is a child of "result" -- the
+    // placeholder node. This will become result.contentInfo.
+    visitElementInfo(_createElementInfo(contentNode, result));
   }
 
   void visitAttribute(ElementInfo info, String name, String value) {
@@ -379,9 +408,9 @@ class _Analyzer extends TreeVisitor {
       _readEventHandler(info, name, value);
       return;
     } else if (name.startsWith('bind-')) {
-      // Strip leading "bind-" and make camel case.
-      var fieldName = toCamelCase(name.substring(5));
-      if (_readTwoWayBinding(info, fieldName, value)) {
+      // Strip leading "bind-"
+      var attrName = name.substring(5);
+      if (_readTwoWayBinding(info, attrName, value)) {
         info.removeAttributes.add(name);
       }
       return;
@@ -458,14 +487,16 @@ class _Analyzer extends TreeVisitor {
 
       // Both 'click' and 'change' seem reliable on all the modern browsers.
       eventStream = 'onChange';
-    } else if (isSelect && (name == 'selectedIndex' || name == 'value')) {
+    } else if (isSelect && (name == 'selected-index' || name == 'value')) {
       eventStream = 'onChange';
     } else if (isInput && name == 'value' && inputType == 'radio') {
       return _addRadioValueBinding(info, binding);
     } else if (isInput && name == 'files' && inputType == 'file') {
       eventStream = 'onChange';
     } else if (isTextArea && name == 'value' || isInput &&
-        (name == 'value' || name == 'valueAsDate' || name == 'valueAsNumber')) {
+        (name == 'value' || name == 'value-as-date' ||
+        name == 'value-as-number')) {
+
       // Input event is fired more frequently than "change" on some browsers.
       // We want to update the value for each keystroke.
       eventStream = 'onInput';
@@ -488,7 +519,8 @@ class _Analyzer extends TreeVisitor {
     _checkDuplicateAttribute(info, name);
 
     info.attributes[name] = new AttributeInfo([binding]);
-    _addEvent(info, eventStream, (e) => '${binding.exp} = $e.$name');
+    _addEvent(info, eventStream,
+        (e) => '${binding.exp} = $e.${findDomField(info, name)}');
     return true;
   }
 

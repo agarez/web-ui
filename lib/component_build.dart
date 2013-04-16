@@ -38,7 +38,7 @@ Future<List<dwc.CompilerResult>> build(List<String> arguments,
   return asyncTime('Total time', () {
     var args = _processArgs(arguments);
     var tasks = new FutureGroup();
-    var lastTask = new Future.immediate(null);
+    var lastTask = new Future.value(null);
     tasks.add(lastTask);
 
     var trackDirs = <Directory>[];

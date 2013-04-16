@@ -12,7 +12,7 @@ import 'package:source_maps/span.dart';
 main() {
   useCompactVMConfiguration();
   var original = "0123456789abcdefghij";
-  var file = new File.text('', original);
+  var file = new SourceFile.text('', original);
 
   test('non conflicting, in order edits', () {
     var txn = new TextEditTransaction(original, file);

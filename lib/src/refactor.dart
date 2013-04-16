@@ -23,7 +23,7 @@ const $SPACE = 32;
  * information, and composes them into the edited string.
  */
 class TextEditTransaction {
-  final File file;
+  final SourceFile file;
   final String original;
   final _edits = <_TextEdit>[];
 

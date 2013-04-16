@@ -139,14 +139,14 @@ main() {
     test('bind-value-as-date', () {
       var input = '<input bind-value-as-date="x">';
       var info = analyzeElement(parseSubtree(input));
-      expect(info.attributes.keys, ['valueAsDate']);
+      expect(info.attributes.keys, ['value-as-date']);
       expect(messages.length, 0);
     });
 
     test('bind-value-as-number', () {
       var input = '<input bind-value-as-number="x">';
       var info = analyzeElement(parseSubtree(input));
-      expect(info.attributes.keys, ['valueAsNumber']);
+      expect(info.attributes.keys, ['value-as-number']);
       expect(messages.length, 0);
     });
 
@@ -269,10 +269,10 @@ main() {
     test('attribute - 2 way binding select', () {
       var input = '<select bind-selected-index="x" bind-value="y">';
       var info = analyzeElement(parseSubtree(input));
-      expect(info.attributes.keys, equals(['selectedIndex', 'value']));
-      expect(info.attributes['selectedIndex'], isNotNull);
-      expect(info.attributes['selectedIndex'].isSimple, true);
-      expect(info.attributes['selectedIndex'].bindings.map((b) => b.exp),
+      expect(info.attributes.keys, equals(['selected-index', 'value']));
+      expect(info.attributes['selected-index'], isNotNull);
+      expect(info.attributes['selected-index'].isSimple, true);
+      expect(info.attributes['selected-index'].bindings.map((b) => b.exp),
           equals(['x']));
       expect(info.attributes['value'], isNotNull);
       expect(info.attributes['value'].isSimple, true);
@@ -432,21 +432,21 @@ main() {
     test('template if (empty)', () {
       var elem = parseSubtree('<template if="foo"></template>');
       var info = analyzeElement(elem);
-      expect(info.hasIfCondition, false);
+      expect(info.hasCondition, false);
     });
 
     test('template if', () {
       var elem = parseSubtree('<template if="foo"><div>');
       var div = elem.query('div');
       TemplateInfo info = analyzeElement(elem);
-      expect(info.hasIfCondition, true);
+      expect(info.hasCondition, true);
       expect(info.createdInCode, false);
       expect(info.children[0].node, equals(div));
       expect(info.children[0].createdInCode, true);
       expect(div.id, '');
       expect(elem.attributes, equals({'if': 'foo'}));
       expect(info.ifCondition, equals('foo'));
-      expect(info.hasIterate, isFalse);
+      expect(info.hasLoop, isFalse);
       expect(messages.length, 0);
     });
 
@@ -454,14 +454,14 @@ main() {
       var elem = parseSubtree('<template instantiate="if foo"><div>');
       var div = elem.query('div');
       TemplateInfo info = analyzeElement(elem);
-      expect(info.hasIfCondition, true);
+      expect(info.hasCondition, true);
       expect(info.createdInCode, false);
       expect(info.children[0].node, equals(div));
       expect(info.children[0].createdInCode, true);
       expect(div.id, '');
       expect(elem.attributes, equals({'instantiate': 'if foo'}));
       expect(info.ifCondition, equals('foo'));
-      expect(info.hasIterate, isFalse);
+      expect(info.hasLoop, isFalse);
       expect(messages.length, 0);
     });
 

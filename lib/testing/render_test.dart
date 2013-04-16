@@ -15,14 +15,14 @@ import 'package:unittest/unittest.dart';
 import 'package:web_ui/dwc.dart' as dwc;
 
 void renderTests(String baseDir, String inputDir, String expectedDir,
-    String outDir, [List<String> args, String scriptDir]) {
+    String outDir, [List<String> args, String script]) {
 
   if (args == null) args = new Options().arguments;
-  if (scriptDir == null) scriptDir = new Options().script;
+  if (script == null) script = new Options().script;
 
   var pattern = new RegExp(args.length > 0 ? args[0] : '.');
 
-  scriptDir = path.absolute(path.dirname(scriptDir));
+  var scriptDir = path.absolute(path.dirname(script));
   baseDir = path.join(scriptDir, baseDir);
   inputDir = path.join(scriptDir, inputDir);
   expectedDir = path.join(scriptDir, expectedDir);
@@ -36,7 +36,7 @@ void renderTests(String baseDir, String inputDir, String expectedDir,
   // generate a file.
   var dir = new Directory(outDir);
   if (dir.existsSync()) {
-    print('Cleaning old output from $outDir');
+    print('Cleaning old output for ${path.normalize(outDir)}');
     dir.deleteSync(recursive: true);
   }
   dir.createSync();

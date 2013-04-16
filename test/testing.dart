@@ -96,9 +96,9 @@ class MockFileSystem extends FileSystem {
     readCount[path] = readCount.putIfAbsent(path, () => 0) + 1;
     var file = _files[path];
     if (file != null) {
-      return new Future.immediate(file);
+      return new Future.value(file);
     } else {
-      return new Future.immediateError(
+      return new Future.error(
           new FileIOException('MockFileSystem: $path not found'));
     }
   }

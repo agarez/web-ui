@@ -7,7 +7,7 @@ library compiler;
 import 'dart:async';
 import 'dart:collection' show SplayTreeMap;
 import 'dart:json' as json;
-import 'package:analyzer_experimental/src/generated/ast.dart' show Directive, UriBasedDirective;
+import 'package:analyzer_experimental/src/generated/ast.dart' show Directive, UriBasedDirective, StringLiteral;
 import 'package:csslib/visitor.dart' show StyleSheet, treeToDebugString;
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/parser.dart';
@@ -103,7 +103,7 @@ class Compiler {
     if (path.basename(_mainPath).endsWith('.dart')) {
       _messages.error("Please provide an HTML file as your entry point.",
           null);
-      return new Future.immediate(null);
+      return new Future.value(null);
     }
     return _parseAndDiscover(_mainPath).then((_) {
       _analyze();
@@ -217,7 +217,7 @@ class Compiler {
   /** Parse an HTML file. */
   Future<SourceFile> _parseHtmlFile(UrlInfo inputPath) {
     if (!_pathMapper.checkInputPath(inputPath, _messages)) {
-      return new Future<SourceFile>.immediate(null);
+      return new Future<SourceFile>.value(null);
     }
     var filePath = inputPath.resolvedPath;
     return fileSystem.readTextOrBytes(filePath)
@@ -233,7 +233,7 @@ class Compiler {
   /** Parse a Dart file. */
   Future<SourceFile> _parseDartFile(UrlInfo inputPath) {
     if (!_pathMapper.checkInputPath(inputPath, _messages)) {
-      return new Future<SourceFile>.immediate(null);
+      return new Future<SourceFile>.value(null);
     }
     var filePath = inputPath.resolvedPath;
     return fileSystem.readText(filePath)
@@ -245,7 +245,7 @@ class Compiler {
   /** Parse a stylesheet file. */
   Future<SourceFile> _parseStyleSheetFile(UrlInfo inputPath) {
     if (!_pathMapper.checkInputPath(inputPath, _messages)) {
-      return new Future<SourceFile>.immediate(null);
+      return new Future<SourceFile>.value(null);
     }
     var filePath = inputPath.resolvedPath;
     return fileSystem.readText(filePath)
@@ -349,7 +349,7 @@ class Compiler {
 
   String _getDirectivePath(LibraryInfo libInfo, Directive directive) {
     var uriDirective = (directive as UriBasedDirective).uri;
-    var uri = uriDirective.value;
+    var uri = (uriDirective as dynamic).value;
     if (uri.startsWith('dart:')) return null;
 
     if (uri.startsWith('package:')) {

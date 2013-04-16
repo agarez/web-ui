@@ -3,6 +3,22 @@
 This file contains highlights of what changes on each version of the web_ui
 package. This file is normally updated whenever we push a new version to pub.
 
+#### Pub version 0.4.5 - Apr 8 2013 (integration SDK 0.4.5.1 r21094)
+  * Support for bindings in id attributes (issue #284)
+  * Use native DOM node type that is being extended in tags (issue #82)
+  * Use presice KeyEvent type on some keyboard events (see #357)
+  * Added 'template-repeat' that, unlike template-iterate, if used as an
+    attribute it repeats the tag instead of the children of the tag.
+  * Bug fixes:
+    * Fixed checked-mode errors in observable: workaround for underlying bugs
+      with mixin in the VM and dart2js.
+    * Additional testing of build.dart
+
+#### Pub version 0.4.4+1 - Apr 8 2013 (integration SDK 0.4.4 r20690)
+  * Hot fix for windows bug: mapping of generated files was not printed
+    correctly from build.dart, so the editor was not mapping/opening correctly
+    the target generated .html file when launching the input .html file.
+
 #### Pub version 0.4.4 - Mar 30 2013 (integration SDK 0.4.4 r20690)
   * data binding for input type=file (thanks to @yohcop!)
   * Switch observable to be a mixin

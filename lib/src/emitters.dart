@@ -16,7 +16,6 @@ import 'package:source_maps/span.dart' show Span, FileLocation;
 import 'code_printer.dart';
 import 'codegen.dart' as codegen;
 import 'dart_parser.dart' show DartCodeInfo;
-import 'html5_setters.g.dart';
 import 'html5_utils.dart';
 import 'html_css_fixup.dart';
 import 'info.dart';
@@ -90,7 +89,7 @@ void emitInitializations(ElementInfo info,
 
   printer.add(childrenPrinter);
 
-  if (info.childrenCreatedInCode && !info.hasIterate && !info.hasIfCondition) {
+  if (info.childrenCreatedInCode && !info.hasLoop && !info.hasCondition) {
     _emitAddNodes(printer, context.statics, info.children, '$id.nodes');
   }
 }
@@ -229,7 +228,7 @@ void _emitSimpleAttributeBinding(ElementInfo info,
   var node = info.identifier;
   var binding = attr.boundValue;
   var isFinal = attr.isBindingFinal;
-  var field = _findDomField(info, name);
+  var field = findDomField(info, name);
   var isUrl = urlAttributes.contains(name);
   printer.addLine('__t.oneWayBind(() => $binding, '
         '(e) { if ($node.$field != e) $node.$field = e; }, $isFinal, $isUrl);',
@@ -243,7 +242,7 @@ void _emitSimpleAttributeBinding(ElementInfo info,
 void _emitTextAttributeBinding(ElementInfo info,
     String name, AttributeInfo attr, CodePrinter printer) {
   var textContent = attr.textContent.map(escapeDartString).toList();
-  var setter = _findDomField(info, name);
+  var setter = findDomField(info, name);
   var content = new StringBuffer();
   var binding;
   var isFinal;
@@ -334,21 +333,26 @@ void emitConditional(TemplateInfo info, CodePrinter printer,
 
 /**
  * Emits code for template lists like `<template iterate='item in items'>` or
- * `<td template iterate='item in items'>`.
+ * `<td template repeat='item in items'>`.
  */
 void emitLoop(TemplateInfo info, CodePrinter printer, Context childContext) {
   var id = info.identifier;
   var items = info.loopItems;
   var loopVar = info.loopVariable;
-  printer..addLine('__t.loop($id, () => $items, ($loopVar, __t) {',
-                   span: info.node.sourceSpan)
+
+  var suffix = '';
+  // TODO(jmesserly): remove this functionality after a grace period.
+  if (!info.isTemplateElement && !info.isRepeat) suffix = 'IterateAttr';
+
+  printer..addLine('__t.loop$suffix($id, () => $items, '
+          '(\$list, \$index, __t) {', span: info.node.sourceSpan)
       ..indent += 1
+      ..addLine('var $loopVar = \$list[\$index];')
       ..add(childContext.declarations)
       ..add(childContext.printer)
       ..indent -= 1;
   _emitAddNodes(printer, childContext.statics, info.children, '__t');
-  printer..addLine(info.isTemplateElement
-      ? '});' : '}, isTemplateElement: false);');
+  printer.addLine('});');
 }
 
 
@@ -383,10 +387,10 @@ class RecursiveEmitter extends InfoVisitor {
     emitComponentCreation(info, _context.printer);
 
     var childContext = null;
-    if (info.hasIfCondition) {
+    if (info.hasCondition) {
       childContext = new Context(statics: _context.statics, indent: indent + 1);
       emitConditional(info, _context.printer, childContext);
-    } else if (info.hasIterate) {
+    } else if (info.hasLoop) {
       childContext = new Context(statics: _context.statics, indent: indent + 1);
       emitLoop(info, _context.printer, childContext);
     } else {
@@ -703,30 +707,6 @@ String _emitCreateHtml(Node node, Declarations statics) {
   var varName = '__html${statics.declarations.length}';
   statics.add('final', varName, node.sourceSpan, expr);
   return '${varName}.clone(true)';
-}
-
-/**
- * Finds the correct expression to set an HTML attribute through the DOM.
- * It is important for correctness to use the DOM setter if it is available.
- * Otherwise changes will not be applied. This is most easily observed with
- * "InputElement.value", ".checked", etc.
- */
-String _findDomField(ElementInfo info, String name) {
-  var typeName = typeForHtmlTag(info.baseTagName);
-  while (typeName != null) {
-    var fields = htmlElementFields[typeName];
-    if (fields != null) {
-      var field = fields[name];
-      if (field != null) return field;
-    }
-    typeName = htmlElementExtends[typeName];
-  }
-  // If we didn't find a DOM setter, and this is a component, set a property on
-  // the component.
-  if (info.component != null && !name.startsWith('data-')) {
-    return 'xtag.${toCamelCase(name)}';
-  }
-  return "attributes['$name']";
 }
 
 /** Trim down the html for the main html page. */

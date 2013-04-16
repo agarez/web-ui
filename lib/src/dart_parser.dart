@@ -13,7 +13,7 @@ import 'package:analyzer_experimental/src/generated/ast.dart';
 import 'package:analyzer_experimental/src/generated/error.dart';
 import 'package:analyzer_experimental/src/generated/parser.dart';
 import 'package:analyzer_experimental/src/generated/scanner.dart';
-import 'package:source_maps/span.dart' show File, FileSegment, Location;
+import 'package:source_maps/span.dart' show SourceFile, SourceFileSegment, Location;
 import 'info.dart';
 import 'messages.dart';
 import 'refactor.dart' show $CR, $LF;
@@ -32,7 +32,7 @@ class DartCodeInfo extends Hashable {
   final List<Directive> directives;
 
   /** Source file representation used to compute source map information. */
-  final File sourceFile;
+  final SourceFile sourceFile;
 
   /** The parsed code. */
   final CompilationUnit compilationUnit;
@@ -118,8 +118,8 @@ DartCodeInfo parseDartCode(String path, String code, Messages messages,
   }
 
   var sourceFile = offset == null
-      ? new File.text(path, code)
-      : new FileSegment(path, code, offset);
+      ? new SourceFile.text(path, code)
+      : new SourceFileSegment(path, code, offset);
 
   return new DartCodeInfo(libraryName, partName, directives, code,
       sourceFile, unit);
@@ -143,7 +143,7 @@ CompilationUnit parseCompilationUnit(String code, {String path,
   // TODO(sigmund): once we enable this, we need to fix compiler.dart to clear
   // out the output of the compiler if we see compilation errors.
   if (false) {
-    var file = new File.text(path, code);
+    var file = new SourceFile.text(path, code);
     for (var e in errorListener.errors) {
       var span = file.span(e.offset, e.offset + e.length);
 

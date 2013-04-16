@@ -35,10 +35,27 @@ class _HtmlCleaner extends InfoVisitor {
     info.removeAttributes.forEach(node.attributes.remove);
     info.removeAttributes.clear();
 
-    // Hide all template elements. At the very least, we must do this for
-    // template attributes, such as `<td template if="cond">`.
-    if (info.hasIfCondition && !info.isTemplateElement) {
-      node.attributes['style'] = 'display:none';
+
+    // Normally, <template> nodes hang around in the DOM as placeholders, and
+    // the user-agent style specifies that they are hidden. For browsers without
+    // native template, we inject the style later.
+    //
+    // However, template *attributes* are used for things like this:
+    //   * <td template if="condition">
+    //   * <td template repeat="x in list">
+    //
+    // In this case, we'll leave the TD as a placeholder. So hide it.
+    //
+    // For now, we also support this:
+    //   * <tr template iterate="x in list">
+    //
+    // We don't need to hide this node, because its children are expanded as
+    // child nodes.
+    if (info is TemplateInfo) {
+      TemplateInfo t = info;
+      if (!t.isTemplateElement && (t.hasCondition || t.isRepeat)) {
+        node.attributes['style'] = 'display:none';
+      }
     }
 
     if (info.childrenCreatedInCode) {

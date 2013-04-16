@@ -69,7 +69,7 @@ class CompilerResult {
 // TODO(justinfagnani): return messages in the result
 Future<CompilerResult> run(List<String> args, {bool printTime: true}) {
   var options = CompilerOptions.parse(args);
-  if (options == null) return new Future.immediate(new CompilerResult());
+  if (options == null) return new Future.value(new CompilerResult());
 
   fileSystem = new ConsoleFileSystem();
   var messages = new Messages(options: options, shouldPrint: true);
@@ -126,7 +126,7 @@ Future symlinkPubPackages(CompilerResult result, CompilerOptions options,
     // in-place where the input lives, if the compiler was called without an
     // entry-point file, or if the compiler was called with a package-root
     // option.
-    return new Future.immediate(null);
+    return new Future.value(null);
   }
 
   var linkDir = path.dirname(result.bootstrapFile);
@@ -137,7 +137,7 @@ Future symlinkPubPackages(CompilerResult result, CompilerOptions options,
   // symlink support in dart:io
   if (new Directory(linkPath).existsSync()) {
     // Packages directory already exists.
-    return new Future.immediate(null);
+    return new Future.value(null);
   }
 
   // A broken symlink works like a file

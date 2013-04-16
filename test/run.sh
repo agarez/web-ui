@@ -53,13 +53,22 @@ function compare {
 if [[ ($TEST_PATTERN == "") ]]; then
   # Note: dart_analyzer needs to be run from the root directory for proper path
   # canonicalization.
-  pushd $DIR/..
+  # TODO(jmesserly): switch to new analyzer once it has good coverage for
+  # unimplemented members.
+  pushd $DIR/.. > /dev/null
+
   echo Analyzing compiler for warnings or type errors
   dart_analyzer --fatal-warnings --fatal-type-errors bin/dwc.dart \
     --work analyzer_out || \
     echo -e "Ignoring analyzer errors ([36mdartbug.com/8132[0m)"
+
+  echo -e "\nAnalyzing runtime for warnings or type errors"
+  dart_analyzer --fatal-warnings --fatal-type-errors lib/web_ui.dart \
+    --work analyzer_out || \
+    echo -e "Ignoring analyzer errors ([36mdartbug.com/8132[0m)"
+
   rm -r analyzer_out
-  popd
+  popd > /dev/null
 fi
 
 function compare_all {
@@ -101,7 +110,8 @@ fi
 # TODO(jmesserly): dart:io fails if we run the Dart scripts with an absolute
 # path. So use pushd/popd to change the working directory.
 if [[ ($TEST_PATTERN == "") ]]; then
-  pushd $DIR/..
+  pushd $DIR/.. > /dev/null
+  echo -e "\nTesting build.dart... "
   dart $DART_FLAGS build.dart
   # Run it the way the editor does. Hide stdout because it is in noisy machine
   # format. Show stderr in case something breaks.
@@ -110,22 +120,22 @@ if [[ ($TEST_PATTERN == "") ]]; then
   dart build.dart --machine --clean > /dev/null
   dart build.dart --machine --full > /dev/null
   dart build.dart --machine --changed example/todomvc/web/index.html > /dev/null
-  popd
+  popd > /dev/null
 fi
 
-pushd $DIR
+pushd $DIR > /dev/null
+echo -e "\nRunning unit tests... "
 dart $DART_FLAGS run_all.dart $TEST_PATTERN || compare_all
-popd
+popd > /dev/null
 
 
 # Run Dart analyzer to check that we're generating warning clean code.
 # It's a bit slow, so only do this for TodoMVC and html5_utils tests.
-OUT_PATTERN="$DIR/data/output/html5_utils_*$TEST_PATTERN*_bootstrap.dart $DIR/../example/todomvc/test/out/test/*$TEST_PATTERN*_bootstrap.dart"
+OUT_PATTERN="$DIR/data/out/html5_utils_*$TEST_PATTERN*_bootstrap.dart $DIR/../example/todomvc/test/out/test/*$TEST_PATTERN*_bootstrap.dart"
 if [[ `ls $OUT_PATTERN 2>/dev/null` != "" ]]; then
-  echo -e "\n Analyzing generated code for warnings or type errors."
-  ls $OUT_PATTERN 2>/dev/null | dart_analyzer --fatal-warnings --fatal-type-errors \
-    --work $DIR/data/output/analyzer/ -batch
-  rm -r $DIR/data/output/analyzer/
+  echo -e "\nAnalyzing generated code for warnings or type errors."
+  ls $OUT_PATTERN 2>/dev/null | dartanalyzer --package-root=packages \
+      --fatal-warnings --fatal-type-errors -batch
 fi
 
 echo -e "[32mAll tests pass[0m"

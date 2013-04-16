@@ -139,11 +139,17 @@ ChangeUnobserver watch(target, ChangeObserver callback, [String debugName]) {
 ChangeUnobserver watchAndInvoke(exp, callback, [debugName]) {
   var res = watch(exp, callback, debugName);
   // TODO(jmesserly): this should be "is Getter" once dart2js bug is fixed.
-  if (exp is Function) {
-    callback(new ChangeNotification(null, exp()));
-  } else {
-    callback(new ChangeNotification(null, exp));
+
+  var value = exp;
+  if (value is Function) {
+    value = value();
   }
+  if (value is Iterable && value is! List) {
+    // TODO(jmesserly): we do this for compat with watch and observe, see the
+    // respective methods.
+    value = value.toList();
+  }
+  callback(new ChangeNotification(null, value));
   return res;
 }
 

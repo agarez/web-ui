@@ -4,16 +4,15 @@
 
 library web_ui.observe.list;
 
-import 'dart:collection';
 import 'observable.dart';
-import 'package:web_ui/src/utils_observe.dart' show Arrays, CollectionBase;
+import 'package:web_ui/src/utils_observe.dart' show Arrays, ListMixinWorkaround;
 
 /**
  * Represents an observable list of model values. If any items are added,
  * removed, or replaced, then observers that are registered with
  * [observe] will be notified.
  */
-class ObservableList<E> extends CollectionBase with Observable
+class ObservableList<E> extends ListMixinWorkaround with Observable
     implements List<E> {
 
   /** The inner [List<E>] with the actual storage. */
@@ -37,8 +36,6 @@ class ObservableList<E> extends CollectionBase with Observable
    */
   factory ObservableList.from(Iterable<E> other) =>
       new ObservableList<E>()..addAll(other);
-
-  Iterator<E> get iterator => new ListIterator<E>(this);
 
   int get length {
     if (observeReads) notifyRead(this, ChangeRecord.FIELD, 'length');
@@ -81,6 +78,13 @@ class ObservableList<E> extends CollectionBase with Observable
     }
     _list[index] = value;
   }
+
+  ObservableList<E> sublist(int start, [int end]) =>
+    new ObservableList<E>.from(super.sublist(start, end));
+
+  // The following three methods (add, removeRange, insertRange) are here so
+  // that we can provide nice change events (insertions and removals). If we
+  // use the mixin implementation, we would only report changes on indices.
 
   void add(E value) {
     int len = _list.length;
@@ -136,68 +140,9 @@ class ObservableList<E> extends CollectionBase with Observable
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Note: below this comment, methods are either:
-  //   * redirect to Arrays
-  //   * redirect to Collections
-  //   * copy+paste from VM GrowableObjectArray.
-  // The general idea is to have these methods operate in terms of our primitive
-  // methods above, so they correctly track reads/writes.
-  // ---------------------------------------------------------------------------
-
-  bool remove(E item) {
-    int i = indexOf(item);
-    if (i == -1) return false;
-    removeAt(i);
-    return true;
-  }
+  // TODO(sigmund): every method below should be in the mixin (dartbug.com/9869)
 
   void insert(int index, E item) => insertRange(index, 1, item);
-
-  bool contains(E item) => IterableMixinWorkaround.contains(_list, item);
-
-  E get first => this[0];
-
-  E removeLast() {
-    var len = length - 1;
-    var elem = this[len];
-    length = len;
-    return elem;
-  }
-
-  int indexOf(E element, [int start = 0]) =>
-      IterableMixinWorkaround.indexOfList(this, element, start);
-
-  int lastIndexOf(E element, [int start]) =>
-      IterableMixinWorkaround.lastIndexOfList(this, element, start);
-
-  ObservableList<E> getRange(int start, int length) =>
-      sublist(start, start + length);
-
-  ObservableList<E> sublist(int start, [int end]) {
-    if (end == null) end = length;
-    var len = end - start;
-    if (len == 0) return new ObservableList<E>(0);
-    Arrays.rangeCheck(this, start, len);
-    List list = new ObservableList<E>(len);
-    Arrays.copy(this, start, list, 0, len);
-    return list;
-  }
-
-  bool get isEmpty => length == 0;
-
-  E get last => this[length - 1];
-
-  void addLast(E value) => add(value);
-
-  void sort([compare = Comparable.compare]) =>
-      IterableMixinWorkaround.sortList(this, compare);
-
-  Iterable<E> get reversed => IterableMixinWorkaround.reversedList(this);
-
-  void clear() {
-    this.length = 0;
-  }
 
   E removeAt(int index) {
     E result = this[index];
@@ -205,41 +150,17 @@ class ObservableList<E> extends CollectionBase with Observable
     return result;
   }
 
-  void setRange(int start, int length, List<E> from, [int startFrom = 0]) {
-    IterableMixinWorkaround.setRangeList(this, start, length, from, startFrom);
+  Iterable expand(Iterable f(E)) {
+    throw new UnimplementedError();
+    return null;
   }
 
-  Map<int, E> asMap() => IterableMixinWorkaround.asMapList(this);
-
-  String toString() => Collections.collectionToString(this);
-}
-
-// TODO(jmesserly): copy+paste from collection-dev
-/**
- * Iterates over a [List] in growing index order.
- */
-class ListIterator<E> implements Iterator<E> {
-  final List<E> _list;
-  final int _length;
-  int _position;
-  E _current;
-
-  ListIterator(List<E> list)
-      : _list = list, _position = -1, _length = list.length;
-
-  bool moveNext() {
-    if (_list.length != _length) {
-      throw new ConcurrentModificationError(_list);
+  String toString() {
+    if (observeReads) {
+      for (int i = 0; i < length; i++) {
+        notifyRead(this, ChangeRecord.INDEX, i);
+      }
     }
-    int nextPosition = _position + 1;
-    if (nextPosition < _length) {
-      _position = nextPosition;
-      _current = _list[nextPosition];
-      return true;
-    }
-    _current = null;
-    return false;
+    return _list.toString();
   }
-
-  E get current => _current;
 }

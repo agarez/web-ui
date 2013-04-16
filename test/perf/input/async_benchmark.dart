@@ -19,7 +19,7 @@ class AsyncBenchmark {
   const AsyncBenchmark([this.name]);
 
   /** The benchmark code, invoked by [warmup] and [exercise]. */
-  Future run() => new Future.immediate(null);
+  Future run() => new Future.value(null);
 
   /** Runs a short version of the benchmark. By default invokes [run] once. */
   Future warmup() => run();
@@ -28,7 +28,7 @@ class AsyncBenchmark {
   Future exercise() {
     int count = 10;
     Future recurse(val) {
-      if (count-- <= 0) return new Future.immediate(val);
+      if (count-- <= 0) return new Future.value(val);
       return run().then(recurse);
     }
     return recurse(null);
@@ -54,7 +54,7 @@ class AsyncBenchmark {
         iter++;
         return f().then(recurse);
       }
-      return new Future.immediate((1000.0 * elapsed) / iter);
+      return new Future.value((1000.0 * elapsed) / iter);
     }
     return recurse(null);
   }

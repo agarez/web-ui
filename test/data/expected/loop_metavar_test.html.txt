@@ -1,0 +1,97 @@
+Content-Type: text/plain
+layer at (0,0) size 800x600
+  RenderView at (0,0) size 800x600
+layer at (0,0) size 800x124
+  RenderBlock {HTML} at (0,0) size 800x124
+    RenderBody {BODY} at (8,8) size 784x108
+      RenderBlock (anonymous) at (0,0) size 784x18
+        RenderText {#text} at (0,0) size 300x18
+          text run at (0,0) width 300: "Test the $index meta variable:"
+      RenderBlock {DIV} at (0,18) size 784x18
+        RenderText {#text} at (0,0) size 10x18
+          text run at (0,0) width 10: "\""
+        RenderText {#text} at (10,0) size 30x18
+          text run at (10,0) width 30: "foo"
+        RenderText {#text} at (40,0) size 90x18
+          text run at (40,0) width 90: "\" is the "
+        RenderText {#text} at (130,0) size 10x18
+          text run at (130,0) width 10: "0"
+        RenderText {#text} at (140,0) size 20x18
+          text run at (140,0) width 20: "th"
+        RenderText {#text} at (160,0) size 130x18
+          text run at (160,0) width 130: " item out of "
+        RenderText {#text} at (290,0) size 10x18
+          text run at (290,0) width 10: "5"
+        RenderText {#text} at (300,0) size 10x18
+          text run at (300,0) width 10: "."
+      RenderBlock {DIV} at (0,36) size 784x18
+        RenderText {#text} at (0,0) size 10x18
+          text run at (0,0) width 10: "\""
+        RenderText {#text} at (10,0) size 30x18
+          text run at (10,0) width 30: "bar"
+        RenderText {#text} at (40,0) size 90x18
+          text run at (40,0) width 90: "\" is the "
+        RenderText {#text} at (130,0) size 10x18
+          text run at (130,0) width 10: "1"
+        RenderText {#text} at (140,0) size 20x18
+          text run at (140,0) width 20: "st"
+        RenderText {#text} at (160,0) size 130x18
+          text run at (160,0) width 130: " item out of "
+        RenderText {#text} at (290,0) size 10x18
+          text run at (290,0) width 10: "5"
+        RenderText {#text} at (300,0) size 10x18
+          text run at (300,0) width 10: "."
+      RenderBlock {DIV} at (0,54) size 784x18
+        RenderText {#text} at (0,0) size 10x18
+          text run at (0,0) width 10: "\""
+        RenderText {#text} at (10,0) size 30x18
+          text run at (10,0) width 30: "baz"
+        RenderText {#text} at (40,0) size 90x18
+          text run at (40,0) width 90: "\" is the "
+        RenderText {#text} at (130,0) size 10x18
+          text run at (130,0) width 10: "2"
+        RenderText {#text} at (140,0) size 20x18
+          text run at (140,0) width 20: "nd"
+        RenderText {#text} at (160,0) size 130x18
+          text run at (160,0) width 130: " item out of "
+        RenderText {#text} at (290,0) size 10x18
+          text run at (290,0) width 10: "5"
+        RenderText {#text} at (300,0) size 10x18
+          text run at (300,0) width 10: "."
+      RenderBlock {DIV} at (0,72) size 784x18
+        RenderText {#text} at (0,0) size 10x18
+          text run at (0,0) width 10: "\""
+        RenderText {#text} at (10,0) size 30x18
+          text run at (10,0) width 30: "qux"
+        RenderText {#text} at (40,0) size 90x18
+          text run at (40,0) width 90: "\" is the "
+        RenderText {#text} at (130,0) size 10x18
+          text run at (130,0) width 10: "3"
+        RenderText {#text} at (140,0) size 20x18
+          text run at (140,0) width 20: "rd"
+        RenderText {#text} at (160,0) size 130x18
+          text run at (160,0) width 130: " item out of "
+        RenderText {#text} at (290,0) size 10x18
+          text run at (290,0) width 10: "5"
+        RenderText {#text} at (300,0) size 10x18
+          text run at (300,0) width 10: "."
+      RenderBlock {DIV} at (0,90) size 784x18
+        RenderText {#text} at (0,0) size 10x18
+          text run at (0,0) width 10: "\""
+        RenderText {#text} at (10,0) size 40x18
+          text run at (10,0) width 40: "quux"
+        RenderText {#text} at (50,0) size 90x18
+          text run at (50,0) width 90: "\" is the "
+        RenderText {#text} at (140,0) size 10x18
+          text run at (140,0) width 10: "4"
+        RenderText {#text} at (150,0) size 20x18
+          text run at (150,0) width 20: "th"
+        RenderText {#text} at (170,0) size 130x18
+          text run at (170,0) width 130: " item out of "
+        RenderText {#text} at (300,0) size 10x18
+          text run at (300,0) width 10: "5"
+        RenderText {#text} at (310,0) size 10x18
+          text run at (310,0) width 10: "."
+      RenderBlock (anonymous) at (0,108) size 784x0
+        RenderText {#text} at (0,0) size 0x0
+        RenderText {#text} at (0,0) size 0x0

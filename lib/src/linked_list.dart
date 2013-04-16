@@ -10,6 +10,8 @@
 // the only person who will want to use a linked list :)
 library linked_list;
 
+import 'dart:collection';
+
 /**
  * An entry in a doubly linked list. It contains a pointer to the next
  * entry, the previous entry, and the boxed value.
@@ -67,7 +69,7 @@ class LinkedListNode<E> {
 }
 
 
-class LinkedList<E> extends Iterable<E> {
+class LinkedList<E> extends IterableBase<E> {
   LinkedListNode<E> _head;
   LinkedListNode<E> _tail;
 

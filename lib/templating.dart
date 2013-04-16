@@ -455,11 +455,22 @@ class Template extends TemplateItem {
     children.add(new ConditionalTemplate(template, exp, bodySetup));
   }
 
-  /** Watch [exp] and render a loop while this template is visible. */
-  void loop(Node template, exp, iterSetup, {isTemplateElement: true}) {
-    children.add(
-        isTemplateElement ?  new LoopTemplate(template, exp, iterSetup)
-        : new LoopTemplateInAttribute(template, exp, iterSetup));
+  /**
+   * Watch [exp] and render a loop while this template is visible.
+   * This is used by all "iterate" and "repeat" attributes, except those that
+   * require [loopIterateAttr].
+   */
+  void loop(Node template, exp, iterSetup) {
+    children.add(new LoopTemplate(template, exp, iterSetup));
+  }
+
+  /**
+   * Watch [exp] and render a loop while this template is visible.
+   * This is used by:
+   *     <td template iterate="x in list">
+   */
+  void loopIterateAttr(Node template, exp, iterSetup) {
+    children.add(new LoopTemplateInAttribute(template, exp, iterSetup));
   }
 
   /** Bind the lifecycle of the component with this template's lifecycle. */
@@ -599,9 +610,12 @@ class ConditionalTemplate extends PlaceholderTemplate {
 }
 
 /** Function to set up the contents of a loop template. */
-typedef void LoopIterationSetup(loopVariable, Template template);
+typedef void LoopIterationSetup(List list, int index, Template template);
 
-/** A template loop of the form `<template iterate="x in list ">`. */
+/**
+ * A template loop of the form `<template iterate="x in list ">` or
+ * `<td template repeat="x in list">`.
+ */
 class LoopTemplate extends PlaceholderTemplate {
   final LoopIterationSetup iterSetup;
 
@@ -610,8 +624,9 @@ class LoopTemplate extends PlaceholderTemplate {
   void insert() {
     stopper = watchAndInvoke(exp, (e) {
       super.remove();
-      for (var x in e.newValue) {
-        iterSetup(x, this);
+      List list = e.newValue; // watchers/observers guarantee a List
+      for (int i = 0; i < list.length; i++) {
+        iterSetup(list, i, this);
       }
       super.insert();
     }, 'loop-binding');
@@ -642,8 +657,9 @@ class LoopTemplateInAttribute extends Template {
   void insert() {
     stopper = watchAndInvoke(exp, (e) {
       _removeInternal();
-      for (var x in e.newValue) {
-        iterSetup(x, this);
+      List list = e.newValue; // watchers/observers guarantee a List
+      for (int i = 0; i < list.length; i++) {
+        iterSetup(list, i, this);
       }
       super.create();
       node.nodes.addAll(nodes);

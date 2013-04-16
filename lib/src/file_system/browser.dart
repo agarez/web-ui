@@ -41,7 +41,7 @@ class BrowserFileSystem implements fs.FileSystem {
       js.context.proxyUrls(sourcePagePort, js.array(requests));
     });
 
-    return new Future.immediate(null);
+    return new Future.value(null);
   }
 
   void writeString(String path, String text) {

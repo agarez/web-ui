@@ -143,7 +143,7 @@ class FutureGroup {
     }, onError: (e) {
       if (_failedTask != null) return;
       _failedTask = task;
-      _completer.completeError(e.error, e.stackTrace);
+      _completer.completeError(e, getAttachedStackTrace(e));
     });
   }
 

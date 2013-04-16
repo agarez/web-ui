@@ -1,0 +1,12 @@
+Content-Type: text/plain
+layer at (0,0) size 800x600
+  RenderView at (0,0) size 800x600
+layer at (0,0) size 800x84
+  RenderBlock {HTML} at (0,0) size 800x84
+    RenderBody {BODY} at (8,8) size 784x68
+      RenderBlock (anonymous) at (0,0) size 784x18
+        RenderText {#text} at (0,0) size 430x18
+          text run at (0,0) width 430: "Verify that style works with text bindings:"
+      RenderBlock {DIV} at (0,18) size 784x50 [color=#0000FF]
+        RenderText {#text} at (0,0) size 600x18
+          text run at (0,0) width 600: "this div will have blue (0000ff) font color and 50px height."

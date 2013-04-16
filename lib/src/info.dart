@@ -375,10 +375,10 @@ class ElementInfo extends NodeInfo<Element> {
   final Set<String> removeAttributes = new Set<String>();
 
   /** Whether the template element has `iterate="... in ...". */
-  bool get hasIterate => false;
+  bool get hasLoop => false;
 
   /** Whether the template element has an `if="..."` conditional. */
-  bool get hasIfCondition => false;
+  bool get hasCondition => false;
 
   bool get isTemplateElement => false;
 
@@ -398,8 +398,8 @@ class ElementInfo extends NodeInfo<Element> {
       'childrenCreatedInCode: $childrenCreatedInCode, '
       'component: $component, '
       'descendantHasBinding: $descendantHasBinding, '
-      'hasIterate: $hasIterate, '
-      'hasIfCondition: $hasIfCondition, '
+      'hasLoop: $hasLoop, '
+      'hasCondition: $hasCondition, '
       'attributes: $attributes, '
       'events: $events>';
 }
@@ -547,10 +547,20 @@ class TemplateInfo extends ElementInfo {
    */
   final String loopItems;
 
+  /**
+   * If [hasLoop] is true, this indicates if the attribute was "repeat" instead
+   * of "iterate".
+   *
+   * For template elements, the two are equivalent, but for template attributes
+   * repeat causes that node to repeat in place, instead of iterating its
+   * children.
+   */
+  final bool isRepeat;
+
   TemplateInfo(Node node, ElementInfo parent,
-      {this.ifCondition, this.loopVariable, this.loopItems})
+      {this.ifCondition, this.loopVariable, this.loopItems, this.isRepeat})
       : super(node, parent) {
-    childrenCreatedInCode = hasIfCondition || hasIterate;
+    childrenCreatedInCode = hasCondition || hasLoop;
   }
 
   /**
@@ -559,9 +569,9 @@ class TemplateInfo extends ElementInfo {
    */
   bool get isTemplateElement => node.tagName == 'template';
 
-  bool get hasIfCondition => ifCondition != null;
+  bool get hasCondition => ifCondition != null;
 
-  bool get hasIterate => loopVariable != null;
+  bool get hasLoop => loopVariable != null;
 
   String toString() => '#<TemplateInfo ${super.toString()}'
       'ifCondition: $ifCondition, '

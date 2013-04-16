@@ -140,7 +140,7 @@ class ObservableMap<K, V> extends Observable implements Map<K, V> {
   String toString() => Maps.mapToString(this);
 }
 
-class _ObservableMapKeyIterable<K, V> extends Iterable<K> {
+class _ObservableMapKeyIterable<K, V> extends IterableBase<K> {
   final ObservableMap<K, V> _map;
   _ObservableMapKeyIterable(this._map);
 
@@ -169,7 +169,7 @@ class _ObservableMapKeyIterator<K, V> implements Iterator<K> {
 }
 
 
-class _ObservableMapValueIterable<K, V> extends Iterable<V> {
+class _ObservableMapValueIterable<K, V> extends IterableBase<V> {
   final ObservableMap<K, V> _map;
   _ObservableMapValueIterable(this._map);
 

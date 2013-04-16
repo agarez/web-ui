@@ -7,6 +7,10 @@
 
 library html5_utils;
 
+import 'html5_setters.g.dart';
+import 'info.dart';
+import 'utils.dart' show toCamelCase;
+
 // TODO(jmesserly): last I checked, const maps are slow in DartVM--O(N) lookup.
 // Do we care? An alternative is lazy initialized static fields.
 
@@ -42,6 +46,65 @@ String typeForHtmlTag(String tag) {
   // known custom-tag.
   return type == null ? 'UnknownElement' : type;
 }
+
+
+/**
+ * Finds the correct expression to set an HTML attribute through the DOM.
+ * It is important for correctness to use the DOM setter if it is available.
+ * Otherwise changes will not be applied. This is most easily observed with
+ * "InputElement.value", ".checked", etc.
+ */
+String findDomField(ElementInfo info, String name) {
+  assert(name == name.toLowerCase()); // must be an attribute, not camelCase.
+
+  if (name.startsWith('data-')) {
+    return "dataset['${name.substring(5)}']";
+  }
+
+  // Convert HTML attributes to DOM fields. The attribute names in HTML5 never
+  // contain dash, so skip if a dash is present.
+  String field;
+  if (name.contains('-')) {
+    // Try to lookup the field name without dashes. This way we will discover
+    // something like "selectedindex" instead of looking it up on the ".xtag".
+    // TODO(jmesserly): consider changing how html5_setters.g works so it uses
+    // dash-separated-words for things that don't have real HTML5 attributes.
+    field = _getDomFieldName(info.baseTagName, name.replaceAll('-', ''));
+  } else {
+    field = _getDomFieldName(info.baseTagName, name);
+  }
+
+  if (field != null) {
+    // TODO(jmesserly): this doesn't allow a component to override a DOM field.
+    // Should we allow that if the field is on Element?
+    return field;
+  }
+
+  // If we didn't find a DOM setter and this is a component, then set a property
+  // on the component.
+  if (info.component != null) {
+    return 'xtag.${toCamelCase(name)}';
+  }
+
+  // As a last resort, add an entry to attributes.
+  return "attributes['$name']";
+}
+
+/** Lookup the field for attribute with [name] on HTML [tag]. */
+String _getDomFieldName(String tag, String name) {
+  var typeName = typeForHtmlTag(tag);
+  while (typeName != null) {
+    // The name has been camel cased; make it lower case.
+    var fields = htmlElementFields[typeName];
+    if (fields != null) {
+      var field = fields[name];
+      if (field != null) return field;
+    }
+    typeName = htmlElementExtends[typeName];
+  }
+  return null;
+}
+
 
 /**
  * HTML element to DOM type mapping. Source:

@@ -9,20 +9,22 @@ BSD-style license that can be found in the LICENSE file.
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
   <link rel="stylesheet"
-  href="http://twitter.github.com/bootstrap/assets/css/bootstrap.css">
+  href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.3.1/css/bootstrap.css">
 </head>
 <body>
   <div class="well">Hello counter: {{count}}</div>
   <script type="application/dart">
+    import 'dart:async' as async;
     import 'dart:html' as html;
     import 'package:web_ui/watcher.dart' as watchers;
     int count;
     main() {
       count = 0;
-      html.window.setInterval(() {
+
+      new async.Timer.periodic(const Duration(seconds: 1), (_) {
         count++;
         watchers.dispatch();
-      }, 1000);
+      });
     }
   </script>
 </body>

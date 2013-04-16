@@ -9,7 +9,7 @@ You can optionally pass a list of input .html files to the script, and the
 script will only regenerate those particular examples.
 
 We currently host the generated code under the github pages of this repo at
-`dart-lang.github.com/dart-web-components/example/explainer/<...>.html.html`.
+`dart-lang.github.io/dart-web-components/example/explainer/<...>.html.html`.
 The dartlang.org article embeds the running version of the examples using
 iframes.
 

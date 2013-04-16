@@ -530,7 +530,7 @@ class _ExpressionObserver {
       // iterators that forward messages from the original collection, but that
       // is difficult implement (and would have too much overhead because of
       // how observeChanges is stratified).
-      if (_value is Iterable && _value is! Observable) {
+      if (_value is Iterable && _value is! List && _value is! Observable) {
         _value = (_value as Iterable).toList();
       }
     } catch (e, trace) {

@@ -7,7 +7,7 @@ library web_ui.observe.set;
 import 'dart:collection';
 import 'observable.dart';
 import 'map.dart' show MapFactory;
-import 'package:web_ui/src/utils_observe.dart' show CollectionBase;
+import 'package:web_ui/src/utils_observe.dart' show IterableWorkaround;
 
 /**
  * Represents an observable set of model values. If any items are added,
@@ -17,7 +17,7 @@ import 'package:web_ui/src/utils_observe.dart' show CollectionBase;
 // TODO(jmesserly): ideally this could be based ObservableMap, or Dart
 // would have a built in Set<->Map adapter as suggested in
 // https://code.google.com/p/dart/issues/detail?id=5603
-class ObservableSet<E> extends CollectionBase with Observable
+class ObservableSet<E> extends IterableWorkaround with Observable
     implements Set<E> {
 
   final Map<E, Object> _map;
@@ -108,12 +108,20 @@ class ObservableSet<E> extends CollectionBase with Observable
   /**
    * Adds all the elements of the given collection to the set.
    */
-  void addAll(Collection<E> collection) => collection.forEach(add);
+  void addAll(Iterable<E> collection) => collection.forEach(add);
 
   /**
    * Removes all the elements of the given collection from the set.
    */
-  void removeAll(Collection<E> collection) => collection.forEach(remove);
+  void removeAll(Iterable collection) => collection.forEach(remove);
+
+  void retainAll(Iterable collection) => retainWhere(collection.contains);
+
+  void removeWhere(bool test(E element)) =>
+      where(test).toList().forEach(remove);
+
+  void retainWhere(bool test(E element)) =>
+      where((e) => !test(e)).toList().forEach(remove);
 
   /** Returns true if [other] contains all the elements of this set. */
   bool isSubsetOf(Set<E> other) =>
@@ -149,7 +157,14 @@ class ObservableSet<E> extends CollectionBase with Observable
     return result;
   }
 
-  String toString() => Collections.collectionToString(this);
+  String toString() {
+    if (observeReads) {
+      for (E value in _map.keys) {
+        notifyRead(this, ChangeRecord.INDEX, value);
+      }
+    }
+    return _map.keys.toSet().toString();
+  }
 }
 
 class _ObservableSetIterator<E> implements Iterator<E> {

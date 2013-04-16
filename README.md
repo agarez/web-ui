@@ -82,7 +82,7 @@ We also have the [Web UI development list][devlist] for discussions about
 internals of the code, code reviews, etc.
 
 [wc]: http://dvcs.w3.org/hg/webcomponents/raw-file/tip/explainer/index.html
-[mdv]: http://code.google.com/p/mdv/
+[mdv]: https://github.com/toolkitchen/mdv/
 [d]: http://www.dartlang.org
 [mb]: http://www.dartlang.org/support/faq.html#what-browsers-supported
 [pub]: http://www.dartlang.org/docs/pub-package-manager/
@@ -93,7 +93,7 @@ internals of the code, code reviews, etc.
 [drtsrc]: http://code.google.com/p/dart/wiki/BuildingDartium
 [TodoMVC]: http://addyosmani.github.com/todomvc/
 [todo_readme]: https://github.com/dart-lang/web-ui/blob/master/example/todomvc/README.md
-[todo_live]:http://dart-lang.github.com/web-ui/example/todomvc/index.html
+[todo_live]:http://dart-lang.github.io/web-ui/example/todomvc/index.html
 [changelog]:https://github.com/dart-lang/web-ui/blob/master/CHANGELOG.md
 [issues]:https://github.com/dart-lang/web-ui/issues
 [mailinglist]:https://groups.google.com/a/dartlang.org/forum/?fromgroups#!forum/web-ui

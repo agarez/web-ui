@@ -220,7 +220,7 @@ class ResolveVarUsages extends Visitor {
         } else if (expr.defaultValue != null) {
           // Use default value.
           if (expr.defaultValue is VarUsage) {
-            var def = varDefs[expr.defaultValue.name];
+            var def = varDefs[(expr.defaultValue as VarUsage).name];
             if (def != null) {
               _resolveVarUsage(node, i, def);
             } else {
