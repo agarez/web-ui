@@ -7,7 +7,7 @@ library compiler;
 import 'dart:async';
 import 'dart:collection' show SplayTreeMap;
 import 'dart:json' as json;
-import 'package:analyzer_experimental/src/generated/ast.dart' show Directive, UriBasedDirective, StringLiteral;
+import 'package:analyzer_experimental/src/generated/ast.dart' show Directive, UriBasedDirective;
 import 'package:csslib/visitor.dart' show StyleSheet, treeToDebugString;
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/parser.dart';

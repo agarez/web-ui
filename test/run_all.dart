@@ -60,7 +60,6 @@ main() {
   // Note: if you're adding more render test suites, make sure to update run.sh
   // as well for convenient baseline diff/updating.
   renderTests('data/input', 'data/input', 'data/expected', 'data/out');
-
   exampleTest('../example/component/news');
   exampleTest('../example/todomvc');
 }
