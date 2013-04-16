@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<!--
+Copyright (c) 2012, the Dart project authors.  Please see the AUTHORS file
+for details. All rights reserved. Use of this source code is governed by a
+BSD-style license that can be found in the LICENSE file.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <link rel="components" href="css_var_comp1.html">
+  <link rel="stylesheet" href="css_import.css">
+  <link rel="stylesheet" href="resources/assets/css/asset.css">
+  <script src="packages/web_ui/testing/testing.js"></script>
+  <title>CSS Import Test</title>
+</head>
+<body>
+  <style>
+    #box-1 {
+      padding: 10px;
+      border: 1px solid black;
+    }
+    /*
+      TODO(terry): .comp-1 is used in component even if the attribute
+                   apply-author-styles not specified?  How is this really
+                   different then reset-style-inherifance.
+     */
+    .comp-1 {
+      font: bold 16pt arial;
+    }
+    .comp-1-input {
+      color: blue;
+      background-color: GreenYellow;
+    }
+    .comp-1-done {
+      font: 32pt bold;
+      color: DarkViolet;
+      background-color: LightCyan;
+    }
+
+    /* TODO(jmesserly): workaround to make the render tree cross-platform. */
+    input {
+      padding: 0px;
+      border: 0px;
+      width: 300px;
+    }
+  </style>
+  <div id="box-1" class="main-glyph">
+    <div class="left-glyph-asset"></div>
+    <input class="comp-1-input" value="Test AAA">
+  </div>
+  <input class="comp-1-done" value="Test BBB">
+  <x-comp1></x-comp1>
+  <x-comp1 type="flipper"></x-comp1>
+  <script type="application/dart">
+import 'dart:async';
+import 'dart:html';
+import 'package:unittest/unittest.dart';
+import 'package:web_ui/web_ui.dart';
+import 'package:web_ui/observe/html.dart';
+
+
+main() {
+  useShadowDom = false;
+
+  Timer.run(() {
+    // Set of linked style sheet urls.
+    var urls = queryAll('link')
+        .where((link) => link.attributes['rel'] == 'stylesheet')
+        .map((link) => link.attributes['href'])
+        .toSet();
+
+    expect(urls.length, 3);
+    expect(urls, contains('css_import_test.html.css'));
+    expect(urls, contains('css_import.css'));
+    expect(urls, contains('resources/assets/css/asset.css'));
+
+    // URI to image in base input directory
+    var items = queryAll('#box-1');
+    DivElement box1Elem = items[0];
+    var image1 = box1Elem.getComputedStyle().backgroundImage;
+    expect(image1.endsWith('/input/main.png)'), true);
+
+    // URI to image in directory input/resources
+    DivElement box2Elem = box1Elem.children[0];
+    var image2 = box2Elem.getComputedStyle().backgroundImage;
+    expect(image2.endsWith('input/resources/assets/images/glyph_asset.png)'),
+        true);
+
+    window.postMessage('done', '*');
+   });
+}
+  </script>
+</body>
+</html>

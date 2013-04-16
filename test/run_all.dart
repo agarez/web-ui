@@ -20,6 +20,7 @@ import 'package:web_ui/dwc.dart' as dwc;
 import 'package:web_ui/testing/render_test.dart';
 
 import 'analyzer_test.dart' as analyzer_test;
+import 'css_test.dart' as css_test;
 import 'compiler_test.dart' as compiler_test;
 import 'emitter_test.dart' as emitter_test;
 import 'html5_utils_test.dart' as html5_utils_test;
@@ -45,6 +46,7 @@ main() {
 
   addGroup('analyzer_test.dart', analyzer_test.main);
   addGroup('compiler_test.dart', compiler_test.main);
+  addGroup('css_test.dart', css_test.main);
   addGroup('emitter_test.dart', emitter_test.main);
   addGroup('html5_utils_test.dart', html5_utils_test.main);
   addGroup('html_cleaner_test.dart', html_cleaner_test.main);
@@ -58,6 +60,7 @@ main() {
   // Note: if you're adding more render test suites, make sure to update run.sh
   // as well for convenient baseline diff/updating.
   renderTests('data/input', 'data/input', 'data/expected', 'data/out');
+
   exampleTest('../example/component/news');
   exampleTest('../example/todomvc');
 }

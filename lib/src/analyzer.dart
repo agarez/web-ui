@@ -1065,6 +1065,7 @@ class _AnalyzerCss {
     var errs = [];
     css.analyze(all, errors: errs, options:
       [_warningsAsErrors ? '--warnings_as_errors' : '', 'memory']);
+
     // Print errors as warnings.
     for (var e in errs) {
       _messages.warning(e.message, e.span);

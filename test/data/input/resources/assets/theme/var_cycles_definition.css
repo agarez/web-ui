@@ -1,0 +1,20 @@
+/* main_color is red (eventually). */
+@main_color: var(b);
+@b: var(c);
+@c: red;
+
+/*
+ * Rest of var- have circularity problems.  In CSS check mode warnings are
+ * generated and otherwise silently ignore and remove vars with cycles.
+ */
+
+@one: var(two);
+@two: var(one);
+
+@four: var(five);
+@five: var(six);
+@six: var(four);
+
+@def-1: var(def-2);
+@def-2: var(def-3);
+@def-3: var(def-2);

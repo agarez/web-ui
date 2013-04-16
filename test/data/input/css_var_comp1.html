@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<!--
+Copyright (c) 2012, the Dart project authors.  Please see the AUTHORS file
+for details. All rights reserved. Use of this source code is governed by a
+BSD-style license that can be found in the LICENSE file.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+  </head>
+  <body>
+<!--
+CSS class .comp-1 comes from the author all other classes and ids are defined in
+the component.
+
+TODO(terry): apply-author-styles needs to be handled the default is not to apply
+             an author's styling.
+-->
+    <element name="x-comp1" extends="span" constructor="Comp1">
+      <template>
+        <style scoped>
+@import "resources/assets/theme/var_cycles_definition.css";
+
+#input-1 { }
+#box-1 {
+  width: 300px;
+  height: 20px;
+  padding: 20px
+}
+.comp-1-input {
+  color: var(main_color);
+  background-color: blue;
+  width: 100%;
+  height: 100%;
+}
+.comp-1-done {
+  color: yellow;
+  background-color: green;
+  width: 100%;
+  height: 100%;
+}
+        </style>
+        <div id="box-1">
+          <input id="input-1" class="comp-1 {{flipping}}">
+        </div>
+      </template>
+      <script type="application/dart">
+        import 'dart:async';
+        import 'package:web_ui/web_ui.dart';
+
+        @observable
+        class Comp1 extends WebComponent {
+          String type;
+          bool _flip = false;
+          String get flipping => _css[_flip ? '.comp-1-done' : '.comp-1-input'];
+          bool get isFlipper => type == 'flipper';
+
+          void inserted() {
+            var elem = _root.query("#${_css['#input-1']}");
+            elem.value = "Testing";
+            if (isFlipper) _flip = true;
+            super.inserted();
+          }
+        }
+      </script>
+    </element>'
+  </body>
+</html>
