@@ -38,6 +38,9 @@ main() {
                           '<style scoped>'
                             '@import "foo.css";'
                             '.main { color: var(main_color); }'
+                            '.test-background { '
+                              'background:  url(http://www.foo.com/bar.png);'
+                            '}'
                           '</style>'
                         '</template>'
                       '</element>'
@@ -101,6 +104,9 @@ main() {
               '@import "foo.css";\n'
               '.x-foo_main {\n'
               '  color: #f00;\n'
+              '}\n'
+              '.x-foo_test-background {\n'
+              '  background: url("http://www.foo.com/bar.png");\n'
               '}\n\n');
         } else if (file.path == 'out/foo.css') {
           expect(file.contents,
