@@ -10,6 +10,7 @@ import 'package:logging/logging.dart' show Level;
 import 'package:unittest/compact_vm_config.dart';
 import 'package:unittest/unittest.dart';
 import 'package:web_ui/src/compiler.dart';
+import 'package:web_ui/src/messages.dart';
 
 import 'testing.dart';
 
@@ -17,6 +18,7 @@ main() {
   useCompactVMConfiguration();
 
   test('recursive dependencies', () {
+    var messages = new Messages.silent();
     var compiler = createCompiler({
       'index.html': '<head>'
                     '<link rel="components" href="foo.html">'
@@ -29,7 +31,7 @@ main() {
       'bar.html': '<head><link rel="components" href="foo.html">'
                   '<body><element name="x-bar" constructor="Boo">'
                   '<template><x-foo>',
-    });
+    }, messages);
 
     compiler.run().then(expectAsync1((e) {
       MockFileSystem fs = compiler.fileSystem;
@@ -55,11 +57,12 @@ main() {
 
   group('missing files', () {
     test('main script', () {
+      var messages = new Messages.silent();
       var compiler = createCompiler({
         'index.html': '<head></head><body>'
             '<script type="application/dart" src="notfound.dart"></script>'
             '</body>',
-      });
+      }, messages);
 
       compiler.run().then(expectAsync1((e) {
         var msgs = messages.messages.where((m) =>
@@ -80,12 +83,13 @@ main() {
     });
 
     test('component html', () {
+      var messages = new Messages.silent();
       var compiler = createCompiler({
         'index.html': '<head>'
             '<link rel="components" href="notfound.html">'
             '<body><x-foo>'
             '<script type="application/dart">main() {}</script>',
-      });
+      }, messages);
 
       compiler.run().then(expectAsync1((e) {
         var msgs = messages.messages.where((m) =>
@@ -106,6 +110,7 @@ main() {
     });
 
     test('component script', () {
+      var messages = new Messages.silent();
       var compiler = createCompiler({
         'index.html': '<head>'
             '<link rel="components" href="foo.html">'
@@ -115,7 +120,7 @@ main() {
         'foo.html': '<body><element name="x-foo" constructor="Foo">'
             '<template></template>'
             '<script type="application/dart" src="notfound.dart"></script>',
-      });
+      }, messages);
 
       compiler.run().then(expectAsync1((e) {
         var msgs = messages.messages.where((m) =>

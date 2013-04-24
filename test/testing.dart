@@ -8,6 +8,7 @@ library testing;
 import 'dart:async';
 import 'dart:io';
 
+import 'package:csslib/visitor.dart';
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/parser.dart';
 import 'package:web_ui/src/analyzer.dart';
@@ -69,16 +70,16 @@ Map<String, FileInfo> analyzeFiles(List<SourceFile> files,
   return result;
 }
 
-var messages;
-
-Compiler createCompiler(Map files, {bool errors: false}) {
+Compiler createCompiler(Map files, Messages messages, {bool errors: false}) {
   List baseOptions = ['--no-colors', '-o', 'out', 'index.html'];
   if (errors) baseOptions.insert(0, '--warnings_as_errors');
   var options = CompilerOptions.parse(baseOptions);
   var fs = new MockFileSystem(files);
-  messages = new Messages.silent();
   return new Compiler(fs, options, messages);
 }
+
+String prettyPrintCss(StyleSheet styleSheet) =>
+    ((new CssPrinter())..visitTree(styleSheet)).toString();
 
 /**
  * Abstraction around file system access to work in a variety of different

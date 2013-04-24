@@ -747,6 +747,18 @@ void transformMainHtml(Document document, FileInfo fileInfo,
         head.hasChildNodes() ? head.nodes.first : null);
   }
 
+  var styles = document.queryAll('style');
+  if (styles.length > 0) {
+    var allCss = new StringBuffer();
+    fileInfo.styleSheets.forEach((styleSheet) =>
+        allCss.write(emitStyleSheet(styleSheet)));
+    styles[0].nodes.clear();
+    styles[0].nodes.add(new Text(allCss.toString()));
+    for (var i = styles.length - 1; i > 0 ; i--) {
+      styles[i].remove();
+    }
+  }
+
   // TODO(jmesserly): put this in the global CSS file?
   // http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#css-additions
   document.head.nodes.insert(0, parseFragment(

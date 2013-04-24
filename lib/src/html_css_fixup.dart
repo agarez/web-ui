@@ -35,13 +35,13 @@ void fixupHtmlCss(FileInfo fileInfo, CompilerOptions opts) {
     // TODO(terry): Consider allowing more than one style sheet per component.
     // For components only 1 stylesheet allowed.
     if (component.styleSheets.length == 1) {
-      var tree = component.styleSheets[0];
+      var styleSheet = component.styleSheets[0];
 
       // If polyfill is on prefix component name to all CSS classes and ids
       // referenced in the scoped style.
       var prefix = opts.processCss ? component.tagName : null;
       // List of referenced #id and .class in CSS.
-      var knownCss = new IdClassVisitor()..visitTree(tree);
+      var knownCss = new IdClassVisitor()..visitTree(styleSheet);
       // Prefix all id and class refs in CSS selectors and HTML attributes.
       new _ScopedStyleRenamer(knownCss, prefix, opts.debugCss).visit(component);
     }
@@ -183,6 +183,10 @@ class _ScopedStyleRenamer extends InfoVisitor {
   }
 }
 
+
+/**
+ * Find var- definitions in a style sheet. [found] list of known definitions.
+ */
 class VarDefinitions extends Visitor {
   final Map<String, VarDefinition> found = new Map();
 
@@ -191,7 +195,7 @@ class VarDefinitions extends Visitor {
   }
 
   visitVarDefinition(VarDefinition node) {
-    //Replace with latest variable definition.
+    // Replace with latest variable definition.
     found[node.definedName] = node;
     super.visitVarDefinition(node);
   }
@@ -201,9 +205,24 @@ class VarDefinitions extends Visitor {
   }
 }
 
-/** Map any expression which contains a varUsage to the var defintion. */
+/**
+ * Resolve any CSS xpression which contains a var() usage to the ultimate real
+ * CSS expression value e.g.,
+ *
+ *    var-one: var(two);
+ *    var-two: #ff00ff;
+ *
+ *    .test {
+ *      color: var(one);
+ *    }
+ *
+ * then .test's color would be #ff00ff
+ */
 class ResolveVarUsages extends Visitor {
   final Map<String, VarDefinition> varDefs;
+  bool inVarDefinition = false;
+  bool inUsage = false;
+  Expressions theExpressions;
 
   ResolveVarUsages(this.varDefs);
 
@@ -211,49 +230,71 @@ class ResolveVarUsages extends Visitor {
     visitStyleSheet(tree);
   }
 
-  void visitExpressions(Expressions node) {
-    for (var i = 0; i < node.expressions.length; i++) {
-      var expr = node.expressions[i];
-      if (expr is VarUsage) {
-        var def = varDefs[expr.name];
-        if (def != null) {
-          _resolveVarUsage(node, i, def);
-        } else if (expr.defaultValue != null) {
-          // Use default value.
-          if (expr.defaultValue is VarUsage) {
-            var def = varDefs[(expr.defaultValue as VarUsage).name];
-            if (def != null) {
-              _resolveVarUsage(node, i, def);
-            } else {
-              node.expressions.removeAt(i);
-            }
-          } else {
-            node.expressions[i] = expr.defaultValue;
-          }
-        } else {
-          // Couldn't find the var definition and no default value so clear the
-          // expression.
-          node.expressions.removeAt(i);
-        }
-      }
-    }
+  void visitVarDefinition(VarDefinition varDef) {
+    inVarDefinition = true;
+    super.visitVarDefinition(varDef);
+    inVarDefinition = false;
   }
 
-  _resolveVarUsage(Expressions node, int idx, VarDefinition def) {
-    // Map to the var'd definition.
-    var defExpressions = (def.expression as Expressions).expressions;
-    if (defExpressions.length == 1) {
-      // Replace the var usage with the real expression.
-      node.expressions[idx] = def.expression;
-    } else if (defExpressions.length > 1) {
-      // Replace var usage with all expressions in the var definition.
-      for (var e in defExpressions.reversed) {
-        node.expressions.insert(idx, e);
+  void visitExpressions(Expressions node) {
+    theExpressions = node;
+    super.visitExpressions(node);
+    theExpressions = null;
+  }
+
+  void visitVarUsage(VarUsage node) {
+    // Don't process other var() inside of a varUsage.  That implies that the
+    // default is a var() too.  Also, don't process any var() inside of a
+    // varDefinition (they're just place holders until we've resolved all real
+    // usages.
+    if (!inUsage && !inVarDefinition && theExpressions != null) {
+      var expressions = theExpressions.expressions;
+      var index = expressions.indexOf(node);
+      var def = varDefs[node.name];
+      if (def != null) {
+        if ((def.expression as Expressions).expressions[0] is VarUsage) {
+          var varUsage = ((def.expression as Expressions).expressions[0]) as VarUsage;
+          theExpressions.expressions[index] = varUsage.defaultValue;
+        } else {
+          _resolveVarUsage(theExpressions, index, def);
+        }
+      } else if (node.defaultValue is VarUsage) {
+        var usage = (node.defaultValue as VarUsage);
+        var expr = resolveUsageTerminal(usage);
+        theExpressions.expressions[index] = expr;
+      } else {
+        // The main var is unknown; use the default value it's a terminal.
+        theExpressions.expressions[index] = node.defaultValue;
       }
-    } else {
-      // Nothing clear the var usage.
-      node.expressions.removeAt(idx);
     }
+
+    inUsage = true;
+    super.visitVarUsage(node);
+    inUsage = false;
+  }
+
+  Expression resolveUsageTerminal(VarUsage usage) {
+    var varDef = varDefs[usage.name];
+
+    if (varDef == null) {
+      // Use the default value.
+      return usage.defaultValue;
+    }
+
+    var expr = (varDef.expression as Expressions).expressions[0];
+
+    if (expr is VarUsage) {
+      // Get terminal value.
+      return resolveUsageTerminal(expr);
+    }
+
+    // We're at the terminal just return the expression.
+    return expr;
+  }
+
+  _resolveVarUsage(Expressions node, int index, VarDefinition def) {
+    var defExpressions = (def.expression as Expressions).expressions;
+    node.expressions.replaceRange(index, index + 1, defExpressions);
   }
 }
 
@@ -264,20 +305,12 @@ class RemoveVarDefinitions extends Visitor {
   }
 
   void visitStyleSheet(StyleSheet ss) {
-    for (var i = ss.topLevels.length - 1; i >= 0; i--) {
-      if (ss.topLevels[i] is VarDefinitionDirective) {
-        ss.topLevels.removeAt(i);
-      }
-    }
+    ss.topLevels.removeWhere((e) => e is VarDefinitionDirective);
     super.visitStyleSheet(ss);
   }
 
   void visitDeclarationGroup(DeclarationGroup node) {
-    for (var i = node.declarations.length - 1; i >= 0; i--) {
-      if (node.declarations[i] is VarDefinition) {
-        node.declarations.removeAt(i);
-      }
-    }
+    node.declarations.removeWhere((e) => e is VarDefinition);
     super.visitDeclarationGroup(node);
   }
 }
@@ -310,6 +343,10 @@ class UriVisitor extends Visitor {
   }
 }
 
+List<UrlInfo> findImportsInStyleSheet(String packageRoot, String inputPath,
+                                      StyleSheet styleSheet) =>
+    (new CssImports(packageRoot, inputPath)..visitTree(styleSheet)).urlInfos;
+
 /**
  * Find any imports in the style sheet; normalize the style sheet href and
  * return a list of all fully qualified CSS files.
@@ -317,70 +354,121 @@ class UriVisitor extends Visitor {
 class CssImports extends Visitor {
   final String packageRoot;
 
-  /** Relative path to this file. */
-  final String path;
+  /** Path to this file. */
+  final String inputPath;
 
   /** List of all imported style sheets. */
   final List<UrlInfo> urlInfos = [];
 
-  CssImports(this.packageRoot, FileInfo fileInfo) : path = fileInfo.inputPath;
+  CssImports(this.packageRoot, this.inputPath);
 
   void visitTree(StyleSheet tree) {
     visitStyleSheet(tree);
   }
 
   void visitImportDirective(ImportDirective node) {
-    var urlInfo = UrlInfo.resolve(packageRoot, path, node.import,
+    var urlInfo = UrlInfo.resolve(packageRoot, inputPath, node.import,
         node.span, isCss: true);
     if (urlInfo == null) return;
     urlInfos.add(urlInfo);
   }
 }
 
-// TODO(terry): Add --checked when fully implemented and error handling.
 StyleSheet parseCss(String content, String sourcePath, Messages messages,
                      CompilerOptions opts) {
-  if (!content.trim().isEmpty) {
-    var errs = [];
+  if (content.trim().isEmpty) return null;
 
-    // TODO(terry): Add --checked when fully implemented and error handling.
-    var stylesheet = css.parse(content, errors: errs, options:
-        [opts.warningsAsErrors ? '--warnings_as_errors' : '', 'memory']);
+  var errors = [];
 
-    // Note: errors aren't fatal in HTML (unless strict mode is on).
-    // So just print them as warnings.
-    for (var e in errs) {
-      messages.warning(e.message, e.span);
-    }
+  // TODO(terry): Add --checked when fully implemented and error handling.
+  var stylesheet = css.parse(content, errors: errors, options:
+      [opts.warningsAsErrors ? '--warnings_as_errors' : '', 'memory']);
 
-    return stylesheet;
+  // Note: errors aren't fatal in HTML (unless strict mode is on).
+  // So just print them as warnings.
+  for (var e in errors) {
+    messages.warning(e.message, e.span);
   }
+
+  return stylesheet;
+}
+
+/** Find terminal definition (non VarUsage implies real CSS value). */
+VarDefinition findTerminalVarDefinition(Map<String, VarDefinition> varDefs,
+                                        VarDefinition varDef) {
+  var expressions = varDef.expression as Expressions;
+  for (var expr in expressions.expressions) {
+    if (expr is VarUsage) {
+      var usageName = (expr as VarUsage).name;
+      var foundDef = varDefs[usageName];
+
+      // If foundDef is unknown check if defaultValue; if it exist then resolve
+      // to terminal value.
+      if (foundDef == null) {
+        var defaultValue = (expr as VarUsage).defaultValue;
+        if (defaultValue != null && defaultValue is VarDefinition) {
+          // Try to resolve the defaultValue's VarDefinition.
+          foundDef = varDefs[usageName];
+        } else {
+          // DefaultValue is a terminal expression; return this VarDefinition.
+          return varDef;
+        }
+      }
+      if (foundDef is VarDefinition) {
+        return findTerminalVarDefinition(varDefs, foundDef);
+      }
+    } else {
+      // Return real CSS property.
+      return varDef;
+    }
+  }
+
+  // Didn't point to a var definition that existed.
+  return varDef;
+}
+
+List<UrlInfo> findUrlsImported(String packageRoot, LibraryInfo info, Node node,
+                               Messages messages, CompilerOptions options) {
+  // Process any @imports inside of the <style> tag.
+  var styleProcessor = new ComponentCssStyleTag(packageRoot, info, messages,
+      options);
+  styleProcessor.visit(node);
+  return styleProcessor.imports;
 }
 
 /** Process CSS inside of a style tag. */
 class ComponentCssStyleTag extends TreeVisitor {
   final String _packageRoot;
-  final ComponentInfo _component;
+  final LibraryInfo _info;
   final Messages _messages;
   final CompilerOptions _options;
+  FileInfo _fileInfo;
 
   /** List of @imports found. */
   List<UrlInfo> imports = [];
 
-  ComponentCssStyleTag(this._packageRoot, this._component, this._messages,
-      this._options);
+  ComponentCssStyleTag(this._packageRoot, this._info, this._messages,
+      this._options) {
+    if (_info is ComponentInfo) {
+      _fileInfo = (_info as ComponentInfo).declaringFile;
+    } else if (_info is FileInfo) {
+      _fileInfo = _info;
+    }
+  }
 
   void visitElement(Element node) {
-    if (node.tagName == 'style' && node.attributes.containsKey("scoped")) {
+
+    if (node.tagName == 'style') {
       // Parse the contents of the scoped style tag.
-      var styleSheet = parseCss(node.nodes.single.value,
-          _component.declaringFile.inputPath, _messages, _options);
+      var styleSheet = parseCss(node.nodes.single.value, _fileInfo.inputPath,
+          _messages, _options);
       if (styleSheet != null) {
-        _component.styleSheets.add(styleSheet);
+        _info.styleSheets.add(styleSheet);
 
         // Find all imports return list of @imports in this style tag.
-        imports.addAll((new CssImports(_packageRoot, _component.declaringFile)
-            ..visitTree(styleSheet)).urlInfos);
+        var urlInfos = findImportsInStyleSheet(_packageRoot,
+            _fileInfo.inputPath, styleSheet);
+        imports.addAll(urlInfos);
       }
     }
     super.visitElement(node);

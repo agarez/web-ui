@@ -134,7 +134,7 @@ class FileInfo extends LibraryInfo implements HtmlFileSummary {
   final List<UrlInfo> componentLinks = <UrlInfo>[];
 
   /** Files imported with `<link rel="stylesheet">` */
-  final List<UrlInfo> styleSheetHref = <UrlInfo>[];
+  final List<UrlInfo> styleSheetHrefs = <UrlInfo>[];
 
   /** Root is associated with the body info. */
   ElementInfo bodyInfo;

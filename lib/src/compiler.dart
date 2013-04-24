@@ -154,7 +154,7 @@ class Compiler {
     }
 
     // Load stylesheet files referenced by [file].
-    for (var link in fileInfo.styleSheetHref) {
+    for (var link in fileInfo.styleSheetHrefs) {
       var href = link.resolvedPath;
       if (!_processed.contains(href)) {
         _processed.add(href);
@@ -169,6 +169,11 @@ class Compiler {
       _tasks.add(_parseDartFile(src).then(_processDartFile));
     }
 
+    // Process any @imports inside of a <style> tag.
+    var urlInfos = findUrlsImported(_pathMapper.packageRoot, fileInfo,
+        file.document, _messages, options);
+    urlInfos.forEach((urlInfo) => _addCssFile(urlInfo));
+
     // Load .dart files being referenced in components.
     for (var component in fileInfo.declaredComponents) {
       var src = component.externalFile;
@@ -179,13 +184,10 @@ class Compiler {
         _processImports(component);
       }
 
-      // Process any @imports inside of the <style> tag.
-      var styleProcessor = new ComponentCssStyleTag(_pathMapper.packageRoot,
-          component, _messages, options);
-      styleProcessor.visit(component.element);
-      for (var urlInfo in styleProcessor.imports) {
-        _addCssFile(urlInfo);
-      }
+      // Process any @imports inside of the <style> tag in a component.
+      var urlInfos = findUrlsImported(_pathMapper.packageRoot, component,
+          component.element, _messages, options);
+      urlInfos.forEach((urlInfo) => _addCssFile(urlInfo));
     }
   }
 
@@ -310,29 +312,30 @@ class Compiler {
 
     var styleSheet = parseCss(cssFile.code, cssFile.path, _messages, options);
     if (styleSheet != null) {
-      resolveStyleSheetImports(fileInfo, cssFile.path, styleSheet);
+      _resolveStyleSheetImports(fileInfo, cssFile.path, styleSheet);
       fileInfo.styleSheets.add(styleSheet);
     }
   }
 
   /** Load and parse all style sheets referenced with an @imports. */
-  void resolveStyleSheetImports(var fileComponent, processingFile,
-                                StyleSheet styleSheet) {
+  void _resolveStyleSheetImports(LibraryInfo info, String processingFile,
+                                 StyleSheet styleSheet) {
+    var isComponent = info is ComponentInfo;
     var fileInfo;
-    if (fileComponent is ComponentInfo) {
-      fileInfo = (fileComponent as ComponentInfo).declaringFile;
-    } else if (fileComponent is FileInfo) {
-      fileInfo = fileComponent;
+    if (isComponent) {
+      fileInfo = (info as ComponentInfo).declaringFile;
+    } else if (info is FileInfo) {
+      fileInfo = info;
     } else return;
 
     var urlInfos = _time('CSS imports', processingFile, () =>
-        (new CssImports(_pathMapper.packageRoot, fileInfo)
-        ..visitTree(styleSheet)).urlInfos);
+        findImportsInStyleSheet(_pathMapper.packageRoot, fileInfo.inputPath,
+            styleSheet));
 
     for (var urlInfo in urlInfos) {
       if (urlInfo == null) break;
 
-      if (fileComponent is FileInfo) fileComponent.styleSheetHref.add(urlInfo);
+      if (!isComponent) (info as FileInfo).styleSheetHrefs.add(urlInfo);
 
       // Load any @imported stylesheet files referenced in this style sheet.
       _addCssFile(urlInfo);

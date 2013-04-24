@@ -1,9 +1,3 @@
-CONSOLE MESSAGE: line 36: FAIL
-CONSOLE MESSAGE: Exception: Expected: contains 'css_import_test.html.css'
-     but: was <{css_var_test.html.css, css_import.css, resources/assets/css/asset.css}>.
-
-Stack Trace: #0      DefaultFailureHandler.fail (native_DOMImplementation.dart:168:13)
-
 Content-Type: text/plain
 layer at (0,0) size 800x600
   RenderView at (0,0) size 800x600

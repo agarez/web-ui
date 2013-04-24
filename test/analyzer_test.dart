@@ -1022,7 +1022,7 @@ main() {
 
       var fileInfo = analyzeFiles(files);
       var info = fileInfo['a/b.html'];
-      expect(info.styleSheetHref.map((l) => l.resolvedPath),
+      expect(info.styleSheetHrefs.map((l) => l.resolvedPath),
           ['a/c.css', 'a/d/e.css', '/f.css', 'packages/p.css']);
     });
   });

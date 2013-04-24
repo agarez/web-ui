@@ -2,7 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-library css_warning_test;
+library css_test;
 
 import 'package:html5lib/dom.dart';
 import 'package:logging/logging.dart' show Level;
@@ -11,9 +11,258 @@ import 'package:unittest/unittest.dart';
 import 'testing.dart';
 import 'package:web_ui/src/messages.dart';
 
-main() {
-  useCompactVMConfiguration();
+test_simple_var() {
+  Map createFiles() {
+    return {
+      'index.html':
+        '<!DOCTYPE html>'
+        '<html lang="en">'
+          '<head>'
+            '<meta charset="utf-8">'
+          '</head>'
+          '<body>'
+            '<style>'
+              '@main_color: var(b);'
+              '@b: var(c);'
+              '@c: red;'
+            '</style>'
+            '<style>'
+              '.test { color: var(main_color); }'
+            '</style>'
+            '<script type="application/dart">main() {}</script>'
+          '</body>'
+        '</html>',
+    };
+  }
 
+  var messages = new Messages.silent();
+  var compiler = createCompiler(createFiles(), messages, errors: true);
+
+  compiler.run().then(expectAsync1((e) {
+    MockFileSystem fs = compiler.fileSystem;
+    expect(fs.readCount, equals({
+      'index.html': 1,
+    }), reason: 'Actual:\n  ${fs.readCount}');
+
+    var htmlInfo = compiler.info['index.html'];
+    expect(htmlInfo.styleSheets.length, 2);
+    expect(prettyPrintCss(htmlInfo.styleSheets[0]), '');
+    expect(prettyPrintCss(htmlInfo.styleSheets[1]), '.test { color: red; }');
+
+    var outputs = compiler.output.map((o) => o.path);
+    expect(outputs, equals([
+      'out/index.html.dart',
+      'out/index.html.dart.map',
+      'out/index.html_bootstrap.dart',
+      'out/index.html',
+    ]));
+  }));
+}
+
+test_var() {
+  Map createFiles() {
+    return {
+      'index.html':
+        '<!DOCTYPE html>'
+        '<html lang="en">'
+          '<head>'
+            '<meta charset="utf-8">'
+          '</head>'
+          '<body>'
+            '<style>'
+              '@main-color: var(b);'
+              '@b: var(c);'
+              '@c: red;'
+              '@d: var(main-color-1, green);'
+            '</style>'
+            '<style>'
+              '.test-1 { color: var(main-color-1, blue); }'
+              '.test-2 { color: var(main-color-1, var(main-color)); }'
+              '.test-3 { color: var(d, yellow); }'
+              '.test-4 { color: var(d-1, yellow); }'
+              '.test-5 { color: var(d-1, var(d)); }'
+            '</style>'
+            '<script type="application/dart">main() {}</script>'
+          '</body>'
+        '</html>',
+    };
+  }
+
+  var messages = new Messages.silent();
+  var compiler = createCompiler(createFiles(), messages, errors: true);
+
+  compiler.run().then(expectAsync1((e) {
+    MockFileSystem fs = compiler.fileSystem;
+    expect(fs.readCount, equals({
+      'index.html': 1,
+    }), reason: 'Actual:\n  ${fs.readCount}');
+
+    var htmlInfo = compiler.info['index.html'];
+    expect(htmlInfo.styleSheets.length, 2);
+    expect(prettyPrintCss(htmlInfo.styleSheets[0]), '');
+    expect(prettyPrintCss(htmlInfo.styleSheets[1]),
+        '.test-1 { color: blue; } '
+        '.test-2 { color: red; } '
+        '.test-3 { color: green; } '
+        '.test-4 { color: yellow; } '
+        '.test-5 { color: green; }');
+    var outputs = compiler.output.map((o) => o.path);
+    expect(outputs, equals([
+      'out/index.html.dart',
+      'out/index.html.dart.map',
+      'out/index.html_bootstrap.dart',
+      'out/index.html',
+    ]));
+  }));
+}
+
+test_simple_import() {
+  Map createFiles() {
+    return {
+      'foo.css':  r'''@main_color: var(b);
+        @b: var(c);
+        @c: red;''',
+      'index.html':
+        '<!DOCTYPE html>'
+        '<html lang="en">'
+          '<head>'
+             '<meta charset="utf-8">'
+          '</head>'
+          '<body>'
+            '<style>'
+              '@import "foo.css";'
+              '.test { color: var(main_color); }'
+            '</style>'
+            '<script type="application/dart">main() {}</script>'
+          '</body>'
+        '</html>',
+    };
+  }
+
+  var messages = new Messages.silent();
+  var compiler = createCompiler(createFiles(), messages, errors: true);
+
+  compiler.run().then(expectAsync1((e) {
+    MockFileSystem fs = compiler.fileSystem;
+    expect(fs.readCount, equals({
+      'foo.css': 1,
+      'index.html': 1,
+    }), reason: 'Actual:\n  ${fs.readCount}');
+
+    var cssInfo = compiler.info['foo.css'];
+    expect(cssInfo.styleSheets.length, 1);
+    expect(prettyPrintCss(cssInfo.styleSheets[0]), '');
+
+    var htmlInfo = compiler.info['index.html'];
+    expect(htmlInfo.styleSheets.length, 1);
+    expect(prettyPrintCss(htmlInfo.styleSheets[0]),
+        '@import url(foo.css); .test { color: red; }');
+
+    var outputs = compiler.output.map((o) => o.path);
+    expect(outputs, equals([
+      'out/index.html.dart',
+      'out/index.html.dart.map',
+      'out/index.html_bootstrap.dart',
+      'out/foo.css',
+      'out/index.html',
+    ]));
+  }));
+}
+
+test_imports() {
+  Map createFiles() {
+    return {
+      'first.css':
+        '@import "third.css";'
+        '@main-width: var(main-width-b);'
+        '@main-width-b: var(main-width-c);'
+        '@main-width-c: var(wide-width);',
+      'second.css':
+        '@import "fourth.css";'
+        '@main-color: var(main-color-b);'
+        '@main-color-b: var(main-color-c);'
+        '@main-color-c: var(color-value);',
+      'third.css':
+        '@wide-width: var(wide-width-b);'
+        '@wide-width-b: var(wide-width-c);'
+        '@wide-width-c: 100px;',
+      'fourth.css':
+        '@color-value: var(color-value-b);'
+        '@color-value-b: var(color-value-c);'
+        '@color-value-c: red;',
+      'index.html':
+        '<!DOCTYPE html>'
+        '<html lang="en">'
+          '<head>'
+            '<meta charset="utf-8">'
+            '<link rel="stylesheet" href="first.css">'
+          '</head>'
+          '<body>'
+            '<style>'
+              '@import "first.css";'
+              '@import "second.css";'
+              '.test-1 { color: var(main-color); }'
+              '.test-2 { width: var(main-width); }'
+            '</style>'
+            '<script type="application/dart">main() {}</script>'
+          '</body>'
+        '</html>',
+    };
+  }
+
+  var messages = new Messages.silent();
+  var compiler = createCompiler(createFiles(), messages, errors: true);
+
+  compiler.run().then(expectAsync1((e) {
+    MockFileSystem fs = compiler.fileSystem;
+    expect(fs.readCount, equals({
+      'first.css': 1,
+      'second.css': 1,
+      'third.css': 1,
+      'fourth.css': 1,
+      'index.html': 1,
+    }), reason: 'Actual:\n  ${fs.readCount}');
+
+    var firstInfo = compiler.info['first.css'];
+    expect(firstInfo.styleSheets.length, 1);
+    expect(prettyPrintCss(firstInfo.styleSheets[0]), '@import url(third.css);');
+
+    var secondInfo = compiler.info['second.css'];
+    expect(secondInfo.styleSheets.length, 1);
+    expect(prettyPrintCss(secondInfo.styleSheets[0]),
+        '@import url(fourth.css);');
+
+    var thirdInfo = compiler.info['third.css'];
+    expect(thirdInfo.styleSheets.length, 1);
+    expect(prettyPrintCss(thirdInfo.styleSheets[0]), '');
+
+    var fourthInfo = compiler.info['fourth.css'];
+    expect(fourthInfo.styleSheets.length, 1);
+    expect(prettyPrintCss(fourthInfo.styleSheets[0]), '');
+
+    var htmlInfo = compiler.info['index.html'];
+    expect(htmlInfo.styleSheets.length, 1);
+    expect(prettyPrintCss(htmlInfo.styleSheets[0]),
+        '@import url(first.css); '
+        '@import url(second.css); '
+        '.test-1 { color: red; } '
+        '.test-2 { width: 100px; }');
+
+    var outputs = compiler.output.map((o) => o.path);
+    expect(outputs, equals([
+      'out/index.html.dart',
+      'out/index.html.dart.map',
+      'out/index.html_bootstrap.dart',
+      'out/first.css',
+      'out/second.css',
+      'out/third.css',
+      'out/fourth.css',
+      'out/index.html',
+    ]));
+  }));
+}
+
+test_component_var() {
   Map createFiles() {
     return {
       'index.html': '<!DOCTYPE html>'
@@ -64,7 +313,8 @@ main() {
   }
 
   test('var- and Less @define', () {
-    var compiler = createCompiler(createFiles(), errors: true);
+    var messages = new Messages.silent();
+    var compiler = createCompiler(createFiles(), messages, errors: true);
 
     compiler.run().then(expectAsync1((e) {
       MockFileSystem fs = compiler.fileSystem;
@@ -77,7 +327,7 @@ main() {
       var cssInfo = compiler.info['foo.css'];
       expect(cssInfo.styleSheets.length, 1);
       var htmlInfo = compiler.info['foo.html'];
-      expect(htmlInfo.styleSheets.length, 0);
+      expect(htmlInfo.styleSheets.length, 1);
       expect(htmlInfo.declaredComponents.length, 1);
       expect(htmlInfo.declaredComponents[0].styleSheets.length, 1);
 
@@ -117,32 +367,72 @@ main() {
 
       // Check for warning messages about var- cycles.
       expect(messages.messages.length, 8);
-      expect(messages.messages.toString(),
-          '[[35mwarning [0m:12:23: var cycle detected var-def-1\n'
-          '                      [35m@def-1: var(def-2)[0m;\n'
-          '                      [35m^^^^^^^^^^^^^^^^^^[0m, '
-          '[35mwarning [0m:9:23: var cycle detected var-five\n'
-          '                      [35m@five: var(six)[0m;\n'
-          '                      [35m^^^^^^^^^^^^^^^[0m, '
-          '[35mwarning [0m:10:23: var cycle detected var-six\n'
-          '                      [35m@six: var(four)[0m;\n'
-          '                      [35m^^^^^^^^^^^^^^^[0m, '
-          '[35mwarning [0m:14:23: var cycle detected var-def-3\n'
-          '                      [35m@def-3: var(def-2)[0m;\n'
-          '                      [35m^^^^^^^^^^^^^^^^^^[0m, '
-          '[35mwarning [0m:6:23: var cycle detected var-two\n'
-          '                      [35m@two: var(one)[0m;\n'
-          '                      [35m^^^^^^^^^^^^^^[0m, '
-          '[35mwarning [0m:13:23: var cycle detected var-def-2\n'
-          '                      [35m@def-2: var(def-3)[0m;\n'
-          '                      @def-3: var(def-2);\n'
-          '                      [35m^^^^^^^^^^^^^^^^^^[0m, '
-          '[35mwarning [0m:5:23: var cycle detected var-one\n'
-          '                      [35m@one: var(two)[0m;\n'
-          '                      [35m^^^^^^^^^^^^^^[0m, '
-          '[35mwarning [0m:8:23: var cycle detected var-four\n'
-          '                      [35m@four: var(five)[0m;\n'
-          '                      [35m^^^^^^^^^^^^^^^^[0m]');
-      }));
+
+      var errorMessage = messages.messages[0];
+      expect(errorMessage.message, contains('var cycle detected var-def-1'));
+      expect(errorMessage.span, isNotNull);
+      expect(errorMessage.span.start.line, 11);
+      expect(errorMessage.span.start.column, 22);
+      expect(errorMessage.span.text, '@def-1: var(def-2)');
+
+      errorMessage = messages.messages[1];
+      expect(errorMessage.message, contains('var cycle detected var-five'));
+      expect(errorMessage.span, isNotNull);
+      expect(errorMessage.span.start.line, 8);
+      expect(errorMessage.span.start.column, 22);
+      expect(errorMessage.span.text, '@five: var(six)');
+
+      errorMessage = messages.messages[2];
+      expect(errorMessage.message, contains('var cycle detected var-six'));
+      expect(errorMessage.span, isNotNull);
+      expect(errorMessage.span.start.line, 9);
+      expect(errorMessage.span.start.column, 22);
+      expect(errorMessage.span.text, '@six: var(four)');
+
+      errorMessage = messages.messages[3];
+      expect(errorMessage.message, contains('var cycle detected var-def-3'));
+      expect(errorMessage.span, isNotNull);
+      expect(errorMessage.span.start.line, 13);
+      expect(errorMessage.span.start.column, 22);
+      expect(errorMessage.span.text, '@def-3: var(def-2)');
+
+      errorMessage = messages.messages[4];
+      expect(errorMessage.message, contains('var cycle detected var-two'));
+      expect(errorMessage.span, isNotNull);
+      expect(errorMessage.span.start.line, 5);
+      expect(errorMessage.span.start.column, 22);
+      expect(errorMessage.span.text, '@two: var(one)');
+
+      errorMessage = messages.messages[5];
+      expect(errorMessage.message, contains('var cycle detected var-def-2'));
+      expect(errorMessage.span, isNotNull);
+      expect(errorMessage.span.start.line, 12);
+      expect(errorMessage.span.start.column, 22);
+      expect(errorMessage.span.text, '@def-2: var(def-3)');
+
+      errorMessage = messages.messages[6];
+      expect(errorMessage.message, contains('var cycle detected var-one'));
+      expect(errorMessage.span, isNotNull);
+      expect(errorMessage.span.start.line, 4);
+      expect(errorMessage.span.start.column, 22);
+      expect(errorMessage.span.text, '@one: var(two)');
+
+      errorMessage = messages.messages[7];
+      expect(errorMessage.message, contains('var cycle detected var-four'));
+      expect(errorMessage.span, isNotNull);
+      expect(errorMessage.span.start.line, 7);
+      expect(errorMessage.span.start.column, 22);
+      expect(errorMessage.span.text, '@four: var(five)');
+    }));
   });
+}
+
+main() {
+  useCompactVMConfiguration();
+
+  test('test_simple_var', test_simple_var);
+  test('test_var', test_var);
+  test('test_simple_import', test_simple_import);
+  test('test_imports', test_imports);
+  test('test_component_var', test_component_var);
 }
