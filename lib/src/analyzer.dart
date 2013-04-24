@@ -9,7 +9,7 @@
 library analyzer;
 
 import 'package:csslib/parser.dart' as Css;
-import 'package:csslib/visitor.dart' show StyleSheet, treeToDebugString, Visitor, Expressions, VarDefinition, VarUsage;
+import 'package:csslib/visitor.dart' show StyleSheet, treeToDebugString, Visitor, Expressions, VarDefinition;
 import 'package:html5lib/dom.dart';
 import 'package:html5lib/dom_parsing.dart';
 import 'package:source_maps/span.dart' hide SourceFile;
