@@ -9,7 +9,6 @@ import 'package:html5lib/dom.dart';
 import 'package:logging/logging.dart' show Level;
 import 'package:unittest/compact_vm_config.dart';
 import 'package:unittest/unittest.dart';
-import 'package:web_ui/src/compiler.dart';
 import 'package:web_ui/src/messages.dart';
 
 import 'testing.dart';

@@ -253,7 +253,8 @@ class ResolveVarUsages extends Visitor {
       var def = varDefs[node.name];
       if (def != null) {
         if ((def.expression as Expressions).expressions[0] is VarUsage) {
-          var varUsage = ((def.expression as Expressions).expressions[0]) as VarUsage;
+          var varUsage =
+              ((def.expression as Expressions).expressions[0]) as VarUsage;
           theExpressions.expressions[index] = varUsage.defaultValue;
         } else {
           _resolveVarUsage(theExpressions, index, def);
