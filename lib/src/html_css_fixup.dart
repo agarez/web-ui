@@ -5,6 +5,7 @@
 library html_css_fixup;
 
 import 'dart:json' as json;
+import 'dart:math' show min;
 import 'dart:uri' show Uri;
 
 import 'package:csslib/parser.dart' as css;
@@ -185,7 +186,8 @@ class _ScopedStyleRenamer extends InfoVisitor {
 
 
 /**
- * Find var- definitions in a style sheet. [found] list of known definitions.
+ * Find var- definitions in a style sheet.
+ * [found] list of known definitions.
  */
 class VarDefinitions extends Visitor {
   final Map<String, VarDefinition> found = new Map();
@@ -206,7 +208,7 @@ class VarDefinitions extends Visitor {
 }
 
 /**
- * Resolve any CSS xpression which contains a var() usage to the ultimate real
+ * Resolve any CSS expression which contains a var() usage to the ultimate real
  * CSS expression value e.g.,
  *
  *    var-one: var(two);
@@ -222,7 +224,7 @@ class ResolveVarUsages extends Visitor {
   final Map<String, VarDefinition> varDefs;
   bool inVarDefinition = false;
   bool inUsage = false;
-  Expressions theExpressions;
+  Expressions currentExpressions;
 
   ResolveVarUsages(this.varDefs);
 
@@ -237,9 +239,9 @@ class ResolveVarUsages extends Visitor {
   }
 
   void visitExpressions(Expressions node) {
-    theExpressions = node;
+    currentExpressions = node;
     super.visitExpressions(node);
-    theExpressions = null;
+    currentExpressions = null;
   }
 
   void visitVarUsage(VarUsage node) {
@@ -247,25 +249,25 @@ class ResolveVarUsages extends Visitor {
     // default is a var() too.  Also, don't process any var() inside of a
     // varDefinition (they're just place holders until we've resolved all real
     // usages.
-    if (!inUsage && !inVarDefinition && theExpressions != null) {
-      var expressions = theExpressions.expressions;
+    if (!inUsage && !inVarDefinition && currentExpressions != null) {
+      var expressions = currentExpressions.expressions;
       var index = expressions.indexOf(node);
+      assert(index >= 0);
       var def = varDefs[node.name];
       if (def != null) {
-        if ((def.expression as Expressions).expressions[0] is VarUsage) {
-          var varUsage =
-              ((def.expression as Expressions).expressions[0]) as VarUsage;
-          theExpressions.expressions[index] = varUsage.defaultValue;
-        } else {
-          _resolveVarUsage(theExpressions, index, def);
+        // Found a VarDefinition use it.
+        _resolveVarUsage(currentExpressions.expressions, index, def);
+      } else if (!node.defaultValues.where((e) => e is VarUsage).isEmpty) {
+        // Don't have a VarDefinition need to use default values resolve all
+        // default values.
+        var terminalDefaults = [];
+        for (var defaultValue in node.defaultValues) {
+          terminalDefaults.addAll(resolveUsageTerminal(defaultValue));
         }
-      } else if (node.defaultValue is VarUsage) {
-        var usage = (node.defaultValue as VarUsage);
-        var expr = resolveUsageTerminal(usage);
-        theExpressions.expressions[index] = expr;
+        expressions.replaceRange(index, index + 1, terminalDefaults);
       } else {
-        // The main var is unknown; use the default value it's a terminal.
-        theExpressions.expressions[index] = node.defaultValue;
+        // No VarDefinition but default value is a terminal expression; use it.
+        expressions.replaceRange(index, index + 1, node.defaultValues);
       }
     }
 
@@ -274,28 +276,39 @@ class ResolveVarUsages extends Visitor {
     inUsage = false;
   }
 
-  Expression resolveUsageTerminal(VarUsage usage) {
+  List<Expression> resolveUsageTerminal(VarUsage usage) {
+    var result = [];
+
     var varDef = varDefs[usage.name];
-
+    var expressions;
     if (varDef == null) {
-      // Use the default value.
-      return usage.defaultValue;
+      // VarDefinition not found try the defaultValues.
+      expressions = usage.defaultValues;
+    } else {
+      // Use the VarDefinition found.
+      expressions = varDef.expression.expressions;
     }
 
-    var expr = (varDef.expression as Expressions).expressions[0];
-
-    if (expr is VarUsage) {
-      // Get terminal value.
-      return resolveUsageTerminal(expr);
+    for (var expr in expressions) {
+      if (expr is VarUsage) {
+        // Get terminal value.
+        result.addAll(resolveUsageTerminal(expr));
+      }
     }
 
-    // We're at the terminal just return the expression.
-    return expr;
+    // We're at a terminal just return the VarDefinition expression.
+    if (result.isEmpty && varDef != null) {
+      result = varDef.expression.expressions;
+    }
+
+    return result;
   }
 
-  _resolveVarUsage(Expressions node, int index, VarDefinition def) {
+  _resolveVarUsage(List<Expressions> expressions, int index,
+                   VarDefinition def) {
     var defExpressions = (def.expression as Expressions).expressions;
-    node.expressions.replaceRange(index, index + 1, defExpressions);
+    var endIndex = min(index + defExpressions.length, expressions.length);
+    expressions.replaceRange(index, endIndex, defExpressions);
   }
 }
 
@@ -344,8 +357,8 @@ class UriVisitor extends Visitor {
   }
 }
 
-List<UrlInfo> findImportsInStyleSheet(String packageRoot, String inputPath,
-                                      StyleSheet styleSheet) =>
+List<UrlInfo> findImportsInStyleSheet(StyleSheet styleSheet, String packageRoot,
+                                      String inputPath) =>
     (new CssImports(packageRoot, inputPath)..visitTree(styleSheet)).urlInfos;
 
 /**
@@ -403,15 +416,15 @@ VarDefinition findTerminalVarDefinition(Map<String, VarDefinition> varDefs,
       var usageName = (expr as VarUsage).name;
       var foundDef = varDefs[usageName];
 
-      // If foundDef is unknown check if defaultValue; if it exist then resolve
+      // If foundDef is unknown check if defaultValues; if it exist then resolve
       // to terminal value.
       if (foundDef == null) {
-        var defaultValue = (expr as VarUsage).defaultValue;
-        if (defaultValue != null && defaultValue is VarDefinition) {
-          // Try to resolve the defaultValue's VarDefinition.
-          foundDef = varDefs[usageName];
-        } else {
-          // DefaultValue is a terminal expression; return this VarDefinition.
+        var defaultValues = (expr as VarUsage).defaultValues;
+        for (var defaultValue in defaultValues) {
+          // We're either a VarUsage or terminal definition if in varDefs;
+          // either way use the default values for this var().
+          var replaceExprs = expressions.expressions;
+          replaceExprs.replaceRange(0, replaceExprs.length, defaultValues);
           return varDef;
         }
       }
@@ -428,11 +441,12 @@ VarDefinition findTerminalVarDefinition(Map<String, VarDefinition> varDefs,
   return varDef;
 }
 
-List<UrlInfo> findUrlsImported(String packageRoot, LibraryInfo info, Node node,
-                               Messages messages, CompilerOptions options) {
+List<UrlInfo> findUrlsImported(LibraryInfo info, FileInfo fileInfo,
+                               String packageRoot, Node node, Messages messages,
+                               CompilerOptions options) {
   // Process any @imports inside of the <style> tag.
-  var styleProcessor = new ComponentCssStyleTag(packageRoot, info, messages,
-      options);
+  var styleProcessor = new ComponentCssStyleTag(packageRoot, info, fileInfo,
+      messages, options);
   styleProcessor.visit(node);
   return styleProcessor.imports;
 }
@@ -443,22 +457,15 @@ class ComponentCssStyleTag extends TreeVisitor {
   final LibraryInfo _info;
   final Messages _messages;
   final CompilerOptions _options;
-  FileInfo _fileInfo;
+  final FileInfo _fileInfo;
 
   /** List of @imports found. */
   List<UrlInfo> imports = [];
 
-  ComponentCssStyleTag(this._packageRoot, this._info, this._messages,
-      this._options) {
-    if (_info is ComponentInfo) {
-      _fileInfo = (_info as ComponentInfo).declaringFile;
-    } else if (_info is FileInfo) {
-      _fileInfo = _info;
-    }
-  }
+  ComponentCssStyleTag(this._packageRoot, this._info, this._fileInfo,
+      this._messages, this._options);
 
   void visitElement(Element node) {
-
     if (node.tagName == 'style') {
       // Parse the contents of the scoped style tag.
       var styleSheet = parseCss(node.nodes.single.value, _fileInfo.inputPath,
@@ -467,8 +474,8 @@ class ComponentCssStyleTag extends TreeVisitor {
         _info.styleSheets.add(styleSheet);
 
         // Find all imports return list of @imports in this style tag.
-        var urlInfos = findImportsInStyleSheet(_packageRoot,
-            _fileInfo.inputPath, styleSheet);
+        var urlInfos = findImportsInStyleSheet(styleSheet, _packageRoot,
+            _fileInfo.inputPath);
         imports.addAll(urlInfos);
       }
     }

@@ -75,6 +75,9 @@ test_var() {
               '@b: var(c);'
               '@c: red;'
               '@d: var(main-color-1, green);'
+              '@border-pen: solid;'
+              '@inset: 5px;'
+              '@frame-color: solid orange;'
             '</style>'
             '<style>'
               '.test-1 { color: var(main-color-1, blue); }'
@@ -82,6 +85,19 @@ test_var() {
               '.test-3 { color: var(d, yellow); }'
               '.test-4 { color: var(d-1, yellow); }'
               '.test-5 { color: var(d-1, var(d)); }'
+              '.test-6 { border: var(inset) var(border-pen) var(d); }'
+              '.test-7 { border: 10px var(border-pen) var(d); }'
+              '.test-8 { border: 20px var(border-pen) yellow; }'
+              '.test-9 { border: 30px dashed var(d); }'
+              '.test-10 { border: 40px var(frame-color);}'
+              '.test-11 { border: 40px var(frame-color-1, blue);}'
+              '.test-12 { border: 40px var(frame-color-1, solid blue);}'
+              '.test-13 {'
+                 'border: 40px var(x1, var(x2, var(x3, var(frame-color)));'
+              '}'
+              '.test-14 { border: 40px var(x1, var(frame-color); }'
+              '.test-15 { border: 40px var(x1, solid blue);}'
+
             '</style>'
             '<script type="application/dart">main() {}</script>'
           '</body>'
@@ -106,7 +122,17 @@ test_var() {
         '.test-2 { color: red; } '
         '.test-3 { color: green; } '
         '.test-4 { color: yellow; } '
-        '.test-5 { color: green; }');
+        '.test-5 { color: green; } '
+        '.test-6 { border: 5px solid green; } '
+        '.test-7 { border: 10px solid green; } '
+        '.test-8 { border: 20px solid yellow; } '
+        '.test-9 { border: 30px dashed green; } '
+        '.test-10 { border: 40px solid orange; } '
+        '.test-11 { border: 40px blue; } '
+        '.test-12 { border: 40px solid blue; } '
+        '.test-13 { border: 40px solid orange; } '
+        '.test-14 { border: 40px solid orange; } '
+        '.test-15 { border: 40px solid blue; }');
     var outputs = compiler.output.map((o) => o.path);
     expect(outputs, equals([
       'out/index.html.dart',

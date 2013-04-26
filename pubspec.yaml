@@ -11,9 +11,7 @@ dependencies:
   pathos: ">=0.4.5"
   unittest: ">=0.4.5"
   # Pin these github packages so we don't get breaks from publishing them:
-#  csslib: ">=0.4.6 <0.4.7"
-  csslib:
-      path: /home/terry/dart-wc/csslib
+  csslib: ">=0.4.6 <0.4.7"
   html5lib: ">=0.4.3 <0.4.4"
   source_maps: ">=0.4.5"
 dev_dependencies:

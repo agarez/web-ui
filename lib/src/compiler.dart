@@ -170,9 +170,9 @@ class Compiler {
     }
 
     // Process any @imports inside of a <style> tag.
-    var urlInfos = findUrlsImported(_pathMapper.packageRoot, fileInfo,
+    var urlInfos = findUrlsImported(fileInfo, fileInfo, _pathMapper.packageRoot,
         file.document, _messages, options);
-    urlInfos.forEach((urlInfo) => _addCssFile(urlInfo));
+    urlInfos.forEach(_addCssFile);
 
     // Load .dart files being referenced in components.
     for (var component in fileInfo.declaredComponents) {
@@ -185,9 +185,9 @@ class Compiler {
       }
 
       // Process any @imports inside of the <style> tag in a component.
-      var urlInfos = findUrlsImported(_pathMapper.packageRoot, component,
-          component.element, _messages, options);
-      urlInfos.forEach((urlInfo) => _addCssFile(urlInfo));
+      var urlInfos = findUrlsImported(component, component.declaringFile,
+          _pathMapper.packageRoot, component.element, _messages, options);
+      urlInfos.forEach(_addCssFile);
     }
   }
 
@@ -318,24 +318,16 @@ class Compiler {
   }
 
   /** Load and parse all style sheets referenced with an @imports. */
-  void _resolveStyleSheetImports(LibraryInfo info, String processingFile,
+  void _resolveStyleSheetImports(FileInfo fileInfo, String processingFile,
                                  StyleSheet styleSheet) {
-    var isComponent = info is ComponentInfo;
-    var fileInfo;
-    if (isComponent) {
-      fileInfo = (info as ComponentInfo).declaringFile;
-    } else if (info is FileInfo) {
-      fileInfo = info;
-    } else return;
-
     var urlInfos = _time('CSS imports', processingFile, () =>
-        findImportsInStyleSheet(_pathMapper.packageRoot, fileInfo.inputPath,
-            styleSheet));
+        findImportsInStyleSheet(styleSheet, _pathMapper.packageRoot,
+            fileInfo.inputPath));
 
     for (var urlInfo in urlInfos) {
       if (urlInfo == null) break;
 
-      if (!isComponent) (info as FileInfo).styleSheetHrefs.add(urlInfo);
+      fileInfo.styleSheetHrefs.add(urlInfo);
 
       // Load any @imported stylesheet files referenced in this style sheet.
       _addCssFile(urlInfo);

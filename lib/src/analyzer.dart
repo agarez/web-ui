@@ -1074,7 +1074,7 @@ class _AnalyzerCss {
       var styleSheets = processVars(fileInfo);
 
       // Add to list of all style sheets analyzed.
-      styleSheets.forEach((styleSheet) => allStyleSheets.add(styleSheet));
+      allStyleSheets.addAll(styleSheets);
     }
 
     // Process any components.
@@ -1082,7 +1082,7 @@ class _AnalyzerCss {
       var all = processVars(component);
 
       // Add to list of all style sheets analyzed.
-      for (var tree in all) allStyleSheets.add(tree);
+      allStyleSheets.addAll(all);
     }
   }
 
@@ -1108,13 +1108,13 @@ class _AnalyzerCss {
     Map varDefs = new Map();
     for (var tree in styleSheets) {
       var allDefs = (new VarDefinitions()..visitTree(tree)).found;
-      allDefs.forEach((key, VarDefinition value) {
+      allDefs.forEach((key, value) {
         varDefs[key] = value;
       });
     }
 
     // Resolve all definitions to a non-VarUsage (terminal expression).
-    varDefs.forEach((key, VarDefinition value) {
+    varDefs.forEach((key, value) {
       for (var expr in (value.expression as Expressions).expressions) {
         var def = findTerminalVarDefinition(varDefs, value);
         varDefs[key] = def;
@@ -1132,44 +1132,39 @@ class _AnalyzerCss {
    * return a list of all referenced stylesheet dependencies (@imports or <link
    * rel="stylesheet" ..>).
    */
-  List<StyleSheet> _dependencies(var libraryInfo, {Set<StyleSheet> all}) {
-    if (all == null) all = new Set();
+  List<StyleSheet> _dependencies(var libraryInfo, {List<StyleSheet> seen}) {
+    if (seen == null) seen = [];
 
-    // FileInfo used to resolve all pathing information.
-    FileInfo fileInfo;
-    if (libraryInfo is FileInfo) {
-      fileInfo = libraryInfo;
-    } else if (libraryInfo is ComponentInfo) {
-      // For a component it's the declaring file path.
-      fileInfo = (libraryInfo as ComponentInfo).declaringFile;
-    } else {
-      return all.toList();
-    }
+    // Used to resolve all pathing information.
+    String inputPath = libraryInfo is FileInfo
+        ? libraryInfo.inputPath
+            : (libraryInfo as ComponentInfo).declaringFile.inputPath;
 
-    var urlInfos = [];
     for (var styleSheet in libraryInfo.styleSheets) {
-      // Add the stylesheet.
-      all.add(styleSheet);
+      if (!seen.contains(styleSheet)) {
+        // Add the stylesheet.
+        seen.add(styleSheet);
 
-      // Any other imports in this stylesheet?
-      urlInfos = findImportsInStyleSheet(packageRoot, fileInfo.inputPath,
-          styleSheet);
+        // Any other imports in this stylesheet?
+        var urlInfos = findImportsInStyleSheet(styleSheet, packageRoot,
+            inputPath);
 
-      // Process other imports in this stylesheets.
-      for (UrlInfo importSS in urlInfos) {
-        var importInfo = info[importSS.resolvedPath];
-        if (importInfo != null) {
-          // Add all known stylesheets processed.
-          for (var stylesheet in importInfo.styleSheets) all.add(stylesheet);
-          for (var hrefInfo in importInfo.styleSheetHrefs) {
-            // Find dependencies for stylesheet referenced with a
-            // <link rel="stylesheet" ...>
-            _dependencies(info[hrefInfo.resolvedPath], all: all);
+        // Process other imports in this stylesheets.
+        for (var importSS in urlInfos) {
+          var importInfo = info[importSS.resolvedPath];
+          if (importInfo != null) {
+            // Add all known stylesheets processed.
+            seen.addAll(importInfo.styleSheets);
+            for (var hrefInfo in importInfo.styleSheetHrefs) {
+              // Find dependencies for stylesheet referenced with a
+              // <link rel="stylesheet" ...>
+              _dependencies(info[hrefInfo.resolvedPath], seen: seen);
+            }
           }
         }
       }
     }
 
-    return all.toList();
+    return seen;
   }
 }
